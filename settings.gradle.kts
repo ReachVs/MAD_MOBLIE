@@ -22,5 +22,9 @@ dependencyResolutionManagement {
     }
 }
 
+<<<<<<< HEAD
 rootProject.name = "Empty_Project"
+=======
+rootProject.name = "MAD_Final"
+>>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
 include(":app")
