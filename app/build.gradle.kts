@@ -1,47 +1,28 @@
-<<<<<<< HEAD
-plugins {
-    alias(libs.plugins.android.application)
-=======
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
 }
 
+apply(plugin = "com.google.dagger.hilt.android")
+
 android {
-    namespace = "com.example.empty_project"
-<<<<<<< HEAD
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
-=======
+    namespace = "com.example.mad_final"
     compileSdk = 34
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
 
     defaultConfig {
-        applicationId = "com.example.empty_project"
+        applicationId = "com.example.mad_final"
         minSdk = 24
-<<<<<<< HEAD
-        targetSdk = 36
-=======
         targetSdk = 34
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-<<<<<<< HEAD
-=======
         vectorDrawables {
             useSupportLibrary = true
         }
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
     }
 
     buildTypes {
@@ -54,16 +35,10 @@ android {
         }
     }
     compileOptions {
-<<<<<<< HEAD
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-=======
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     
-    // We use tasks.withType to configure Kotlin to avoid the DeprecatedKotlinJvmOptions warning
-    // while keeping android.newDsl=false for compatibility with Hilt.
     buildFeatures {
         compose = true
     }
@@ -77,19 +52,11 @@ android {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
     }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-<<<<<<< HEAD
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-=======
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -136,5 +103,4 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
->>>>>>> c993f1b (Initial commit: Migrated build template and configured project)
 }
