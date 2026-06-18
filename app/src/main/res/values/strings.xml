@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">Empty_Project</string>
+    <string name="app_name">Madape</string>
+    <string name="hello_world">Hello, %1$s!</string>
+    <string name="greeting_changed">Text Changed, %1$s!</string>
+    <string name="change_text">Change Text</string>
+    <string name="reset">Reset</string>
+    <string name="name_too_long">Name is too long!</string>
+    <string name="good_morning">Good Morning, %1$s!</string>
+    <string name="good_afternoon">Good Afternoon, %1$s!</string>
+    <string name="good_evening">Good Evening, %1$s!</string>
+    <string name="good_night">Good Night, %1$s!</string>
+    <string name="default_name">Madape</string>
+    <string name="name_hint">Enter your name</string>
 </resources>
