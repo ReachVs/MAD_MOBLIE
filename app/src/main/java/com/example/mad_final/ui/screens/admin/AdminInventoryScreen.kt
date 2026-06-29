@@ -1,5 +1,6 @@
 package com.example.mad_final.ui.screens.admin
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mad_final.ui.navigation.Screen
 import com.example.mad_final.ui.theme.Primary
 import com.example.mad_final.ui.theme.Secondary
@@ -13,6 +14,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.mad_final.domain.models.Part
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,11 +29,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import com.example.mad_final.ui.components.TechnicalGridBackground
 import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
 
 // Colors from Style Guide
 private val CriticalRed = Color(0xFF991B1B)
 private val WarningOrange = Color(0xFFB45309)
-private val OptimalGreen = Color(0xFF15803D)
+private val OptimalGrey = Color(0xFF1E293B)
 
 @Preview(showBackground = true)
 @Composable
@@ -45,11 +51,22 @@ fun AdminInventoryScreen(
     onHomeClick: () -> Unit = {},
     onQueueClick: () -> Unit = {},
     onRevenueClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {},
+    onServicesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     viewModel: AdminInventoryViewModel = hiltViewModel()
 ) {
-    val parts by viewModel.parts.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val parts by viewModel.parts.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val totalCount by viewModel.totalSkus.collectAsStateWithLifecycle()
+    val criticalCount by viewModel.criticalCount.collectAsStateWithLifecycle()
+    val lowStockCount by viewModel.lowStockCount.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val adminImageUri by viewModel.adminImageUri.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val selectedPartState = viewModel.selectedPart.collectAsStateWithLifecycle()
+    val selectedPart = selectedPartState.value
     
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -65,6 +82,21 @@ fun AdminInventoryScreen(
         )
     }
 
+    selectedPart?.let { part ->
+        PartDetailDialog(
+            part = part,
+            onDismiss = { viewModel.clearSelectedPart() },
+            onUpdate = { updatedPart ->
+                viewModel.updatePart(updatedPart)
+                viewModel.clearSelectedPart()
+            },
+            onDelete = {
+                viewModel.deletePart(part)
+                viewModel.clearSelectedPart()
+            }
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -76,11 +108,25 @@ fun AdminInventoryScreen(
                     scope.launch { drawerState.close() }
                     onRevenueClick()
                 },
+                onCalendarClick = {
+                    scope.launch { drawerState.close() }
+                    onCalendarClick()
+                },
+                onServicesClick = {
+                    scope.launch { drawerState.close() }
+                    onServicesClick()
+                },
+                onProfileClick = {
+                    scope.launch { drawerState.close() }
+                    onProfileClick()
+                },
                 onLogout = onLogout,
                 onClose = {
                     scope.launch { drawerState.close() }
                 },
-                currentRoute = Screen.AdminInventory.route
+                currentRoute = Screen.AdminInventory.route,
+                userName = userName,
+                userImageUri = adminImageUri
             )
         }
     ) {
@@ -90,12 +136,15 @@ fun AdminInventoryScreen(
                     title = "INVENTORY",
                     onMenuClick = {
                         scope.launch { drawerState.open() }
-                    }
+                    },
+                    onProfileClick = onProfileClick,
+                    onCalendarClick = onCalendarClick,
+                    userImageUri = adminImageUri
                 ) 
             },
             bottomBar = { 
                 AdminBottomNavigation(
-                    onHomeClick = onHomeClick,
+                    onDashboardClick = onHomeClick,
                     onInventoryClick = {},
                     onQueueClick = onQueueClick,
                     currentRoute = Screen.AdminInventory.route
@@ -128,9 +177,9 @@ fun AdminInventoryScreen(
                     
                     item { 
                         InventoryStatsHeader(
-                            totalCount = parts.size,
-                            criticalCount = parts.count { it.stockQuantity < 5 }, 
-                            lowStockCount = parts.count { it.stockQuantity in 5..15 }
+                            totalCount = totalCount,
+                            criticalCount = criticalCount, 
+                            lowStockCount = lowStockCount
                         ) 
                     }
                     
@@ -147,6 +196,7 @@ fun AdminInventoryScreen(
                     
                     item { 
                         InventoryFilters(
+                            categories = categories,
                             selectedCategory = selectedCategory,
                             onCategorySelect = { viewModel.onCategorySelect(it) }
                         ) 
@@ -158,20 +208,32 @@ fun AdminInventoryScreen(
                         InventoryItemCard(
                             status = when {
                                 part.stockQuantity == 0 -> "OUT OF STOCK"
-                                part.stockQuantity < 10 -> "CRITICAL STOCK"
+                                part.stockQuantity < 5 -> "CRITICAL STOCK"
                                 else -> "OPTIMAL"
                             },
                             statusColor = when {
                                 part.stockQuantity == 0 -> CriticalRed
-                                part.stockQuantity < 10 -> WarningOrange
-                                else -> OptimalGreen
+                                part.stockQuantity < 5 -> WarningOrange
+                                else -> OptimalGrey
                             },
                             title = part.name,
                             sku = part.sku,
+                            category = part.category,
+                            price = part.price,
                             unitsLeft = part.stockQuantity,
-                            minRequired = 10,
-                            actionText = if (part.stockQuantity < 10) "REORDER NOW" else "VIEW DETAILS",
-                            isOptimal = part.stockQuantity >= 10
+                            minRequired = 5,
+                            actionText = if (part.stockQuantity < 5) "RESTOCK +10" else "VIEW DETAILS",
+                            isOptimal = part.stockQuantity >= 5,
+                            onActionClick = {
+                                if (part.stockQuantity < 5) {
+                                    viewModel.restockPart(part, 10)
+                                } else {
+                                    viewModel.onViewPartDetails(part)
+                                }
+                            },
+                            onLongClick = {
+                                viewModel.onViewPartDetails(part)
+                            }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -298,47 +360,64 @@ fun InventorySearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun InventoryFilters(selectedCategory: String, onCategorySelect: (String) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        val categories = listOf("ALL", "ENGINE", "TIRES", "FLUIDS")
-        categories.forEachIndexed { index, category ->
+fun InventoryFilters(
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelect: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        categories.forEach { category ->
             val isSelected = selectedCategory == category
             Surface(
                 color = if (isSelected) Primary else Color.White,
-                modifier = Modifier.weight(1f).clickable { onCategorySelect(category) },
+                modifier = Modifier
+                    .widthIn(min = 80.dp)
+                    .clickable { onCategorySelect(category) },
                 border = BorderStroke(2.dp, Color.Black),
                 shape = RoundedCornerShape(0.dp)
             ) {
                 Text(
-                    if (category == "ENGINE") "ENGINE COMPONENTS" else category,
+                    category,
                     color = if (isSelected) Color.White else Neutral,
-                    modifier = Modifier.padding(vertical = 12.dp),
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 12.dp),
                     textAlign = TextAlign.Center,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Black,
                     maxLines = 1
                 )
             }
-            if (index < categories.size - 1) {
-                Spacer(modifier = Modifier.width(4.dp))
-            }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InventoryItemCard(
     status: String,
     statusColor: Color,
     title: String,
     sku: String,
+    category: String,
+    price: Double,
     unitsLeft: Int,
     minRequired: Int,
     actionText: String,
-    isOptimal: Boolean = false
+    isOptimal: Boolean = false,
+    onActionClick: () -> Unit = {},
+    onLongClick: () -> Unit = {}
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onActionClick,
+                onLongClick = onLongClick
+            ),
         border = BorderStroke(2.dp, Color.Black),
         color = Color.White,
         shape = RoundedCornerShape(0.dp)
@@ -367,6 +446,19 @@ fun InventoryItemCard(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 0.5.sp
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = Primary.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                category.uppercase(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Primary
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -375,12 +467,21 @@ fun InventoryItemCard(
                         fontWeight = FontWeight.Black,
                         lineHeight = 24.sp
                     )
-                    Text(
-                        "SKU: $sku",
-                        fontSize = 10.sp,
-                        color = Neutral,
-                        fontWeight = FontWeight.Black
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "SKU: $sku",
+                            fontSize = 10.sp,
+                            color = Neutral,
+                            fontWeight = FontWeight.Black
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "PRICE: $${String.format(Locale.getDefault(), "%.2f", price)}",
+                            fontSize = 10.sp,
+                            color = Primary,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
@@ -416,7 +517,7 @@ fun InventoryItemCard(
                 
                 if (isOptimal) {
                     OutlinedButton(
-                        onClick = { },
+                        onClick = onActionClick,
                         shape = RoundedCornerShape(0.dp),
                         border = BorderStroke(2.dp, Color.Black)
                     ) {
@@ -424,7 +525,7 @@ fun InventoryItemCard(
                     }
                 } else {
                     Button(
-                        onClick = { },
+                        onClick = onActionClick,
                         colors = ButtonDefaults.buttonColors(containerColor = Secondary),
                         shape = RoundedCornerShape(0.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp)
@@ -439,6 +540,175 @@ fun InventoryItemCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun PartDetailDialog(
+    part: com.example.mad_final.domain.models.Part,
+    onDismiss: () -> Unit,
+    onUpdate: (com.example.mad_final.domain.models.Part) -> Unit,
+    onDelete: () -> Unit
+) {
+    var name by remember { mutableStateOf(part.name) }
+    var sku by remember { mutableStateOf(part.sku) }
+    var price by remember { mutableStateOf(part.price.toString()) }
+    var category by remember { mutableStateOf(part.category) }
+    var stockInput by remember { mutableStateOf(part.stockQuantity.toString()) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    
+    val categories = listOf("ENGINE", "TIRES", "FLUIDS", "BRAKES", "ELECTRICAL", "ACCESSORIES")
+    var expanded by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("CONFIRM DELETE", fontWeight = FontWeight.Black) },
+            text = { Text("Are you sure you want to remove this SKU from inventory?") },
+            confirmButton = {
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(containerColor = CriticalRed),
+                    shape = RoundedCornerShape(0.dp)
+                ) {
+                    Text("DELETE", color = Color.White, fontWeight = FontWeight.Black)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("CANCEL", color = Neutral, fontWeight = FontWeight.Black)
+                }
+            },
+            shape = RoundedCornerShape(0.dp),
+            containerColor = Color.White
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("EDIT PART DETAILS", fontWeight = FontWeight.Black)
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CriticalRed)
+                }
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("NAME", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp)
+                )
+                
+                OutlinedTextField(
+                    value = sku,
+                    onValueChange = { sku = it },
+                    label = { Text("SKU", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp)
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("CATEGORY", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(0.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        categories.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    category = selectionOption
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { price = it },
+                        label = { Text("UNIT PRICE", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(0.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                        )
+                    )
+                    OutlinedTextField(
+                        value = stockInput,
+                        onValueChange = { stockInput = it },
+                        label = { Text("STOCK QTY", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(0.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        )
+                    )
+                }
+
+                if (part.lastRestocked > 0) {
+                    val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+                    val date = Date(part.lastRestocked)
+                    Text(
+                        "LAST RESTOCKED: ${sdf.format(date)}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Neutral
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val updatedPart = part.copy(
+                        name = name,
+                        sku = sku,
+                        price = price.toDoubleOrNull() ?: part.price,
+                        category = category,
+                        stockQuantity = stockInput.toIntOrNull() ?: part.stockQuantity
+                    )
+                    onUpdate(updatedPart)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                shape = RoundedCornerShape(0.dp)
+            ) {
+                Text("SAVE CHANGES", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CLOSE", color = Neutral, fontWeight = FontWeight.Black)
+            }
+        },
+        shape = RoundedCornerShape(0.dp),
+        containerColor = Color.White
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun AddPartDialog(
     onDismiss: () -> Unit,
     onAdd: (String, String, Int, Double, String) -> Unit
@@ -448,6 +718,15 @@ fun AddPartDialog(
     var quantity by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("ENGINE") }
+    
+    val categories = listOf("ENGINE", "TIRES", "FLUIDS", "BRAKES", "ELECTRICAL", "ACCESSORIES")
+    var expanded by remember { mutableStateOf(false) }
+
+    val isInputValid = name.isNotBlank() && 
+                       sku.isNotBlank() && 
+                       quantity.toIntOrNull() != null && 
+                       price.toDoubleOrNull() != null &&
+                       category.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -459,35 +738,65 @@ fun AddPartDialog(
                     onValueChange = { name = it },
                     label = { Text("Part Name") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(0.dp)
+                    shape = RoundedCornerShape(0.dp),
+                    isError = name.isBlank() && name.isNotEmpty()
                 )
                 OutlinedTextField(
                     value = sku,
                     onValueChange = { sku = it },
                     label = { Text("SKU") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(0.dp)
+                    shape = RoundedCornerShape(0.dp),
+                    isError = sku.isBlank() && sku.isNotEmpty()
                 )
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(0.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        categories.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    category = selectionOption
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { quantity = it },
                     label = { Text("Initial Stock") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(0.dp)
+                    shape = RoundedCornerShape(0.dp),
+                    isError = quantity.isNotEmpty() && quantity.toIntOrNull() == null
                 )
                 OutlinedTextField(
                     value = price,
                     onValueChange = { price = it },
                     label = { Text("Unit Price") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(0.dp)
-                )
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(0.dp)
+                    shape = RoundedCornerShape(0.dp),
+                    isError = price.isNotEmpty() && price.toDoubleOrNull() == null
                 )
             }
         },
@@ -502,7 +811,11 @@ fun AddPartDialog(
                         category
                     )
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                enabled = isInputValid,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    disabledContainerColor = Primary.copy(alpha = 0.5f)
+                ),
                 shape = RoundedCornerShape(0.dp)
             ) {
                 Text("ADD TO INVENTORY", fontWeight = FontWeight.Black)

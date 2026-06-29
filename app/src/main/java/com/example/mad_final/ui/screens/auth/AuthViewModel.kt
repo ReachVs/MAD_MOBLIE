@@ -38,7 +38,10 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             repository.login(LoginRequest(email, password))
-                .onSuccess { _authState.value = AuthState.Success }
+                .onSuccess { response ->
+                    val isAdmin = response.role == "ADMIN"
+                    _authState.value = AuthState.Success(isAdmin)
+                }
                 .onFailure { _authState.value = AuthState.Error(it.message ?: "Login failed") }
         }
     }
@@ -53,7 +56,10 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             repository.register(RegisterRequest(name, email, password))
-                .onSuccess { _authState.value = AuthState.Success }
+                .onSuccess { response ->
+                    val isAdmin = response.role == "ADMIN"
+                    _authState.value = AuthState.Success(isAdmin)
+                }
                 .onFailure { _authState.value = AuthState.Error(it.message ?: "Registration failed") }
         }
     }
@@ -62,7 +68,7 @@ class AuthViewModel @Inject constructor(
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    object Success : AuthState()
+    data class Success(val isAdmin: Boolean) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 

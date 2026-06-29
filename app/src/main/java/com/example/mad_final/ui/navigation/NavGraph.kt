@@ -2,7 +2,7 @@ package com.example.mad_final.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import com.example.mad_final.ui.screens.auth.SessionState
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -15,13 +15,15 @@ import com.example.mad_final.ui.screens.admin.AdminInventoryScreen
 import com.example.mad_final.ui.screens.admin.AdminQueueScreen
 import com.example.mad_final.ui.screens.admin.AdminRevenueScreen
 import com.example.mad_final.ui.screens.admin.AdminDashboardScreen
+import com.example.mad_final.ui.screens.admin.AdminCalendarScreen
+import com.example.mad_final.ui.screens.admin.AdminServiceManagementScreen
 import com.example.mad_final.ui.screens.booking.BookingScreen
 import com.example.mad_final.ui.screens.bookings.MyBookingsScreen
 import com.example.mad_final.ui.screens.catalog.CatalogScreen
 import com.example.mad_final.ui.screens.dashboard.DashboardScreen
-import com.example.mad_final.ui.screens.dashboard.LiveWorkshopFeedScreen
 import com.example.mad_final.ui.screens.detail.MotorcycleDetailScreen
 import com.example.mad_final.ui.screens.detail.ServiceDetailScreen
+import com.example.mad_final.ui.screens.profile.ProfileScreen
 import com.example.mad_final.ui.screens.landing.LandingScreen
 import com.example.mad_final.ui.screens.landing.SplashScreen
 
@@ -30,7 +32,7 @@ fun SetupNavGraph(
     navController: NavHostController,
     authViewModel: com.example.mad_final.ui.screens.auth.AuthViewModel = hiltViewModel()
 ) {
-    val sessionState by authViewModel.sessionState.collectAsState()
+    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
 
     // GLOBAL AUTH GUARD: If unauthenticated, force to Landing page instead of Dashboard
     LaunchedEffect(sessionState) {
@@ -71,7 +73,7 @@ fun SetupNavGraph(
             )
         }
         composable(route = Screen.Landing.route) {
-            val sessionState by authViewModel.sessionState.collectAsState()
+            val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
             LandingScreen(
                 onBookServiceClick = {
                     if (sessionState is SessionState.Authenticated) {
@@ -122,9 +124,15 @@ fun SetupNavGraph(
         }
         composable(route = Screen.Register.route) {
             RegisterScreen(
-                onRegisterSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                onRegisterSuccess = { isAdmin ->
+                    if (isAdmin) {
+                        navController.navigate(Screen.AdminDashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                     }
                 },
                 onNavigateToLogin = {
@@ -140,41 +148,14 @@ fun SetupNavGraph(
                 onExploreClick = {
                     navController.navigate(Screen.Catalog.route)
                 },
-                onMyBookingsClick = {
+                onTrackingClick = {
                     navController.navigate(Screen.MyBookings.route)
                 },
                 onBookClick = {
                     navController.navigate(Screen.Booking.createRoute("custom_unit"))
-                },
-                onLiveFeedClick = {
-                    navController.navigate(Screen.LiveFeed.route)
                 },
                 onProfileClick = {
-                    navController.navigate(Screen.MyBookings.route)
-                }
-            )
-        }
-        composable(route = Screen.LiveFeed.route) {
-            LiveWorkshopFeedScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onLogout = {
-                    authViewModel.logout()
-                },
-                onDashboardClick = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
-                    }
-                },
-                onExploreClick = {
-                    navController.navigate(Screen.Catalog.route)
-                },
-                onMyBookingsClick = {
-                    navController.navigate(Screen.MyBookings.route)
-                },
-                onBookClick = {
-                    navController.navigate(Screen.Booking.createRoute("custom_unit"))
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -183,20 +164,21 @@ fun SetupNavGraph(
                 onLogout = {
                     authViewModel.logout()
                 },
-                onServiceClick = { id ->
-                    navController.navigate(Screen.ServiceDetail.createRoute(id))
+                onServiceClick = { ids ->
+                    // Navigate to booking with selected service IDs in the config parameter
+                    navController.navigate(Screen.Booking.createRoute("custom_unit", ids))
                 },
                 onHomeClick = {
                     navController.navigate(Screen.Dashboard.route)
                 },
-                onLiveFeedClick = {
-                    navController.navigate(Screen.LiveFeed.route)
+                onTrackingClick = {
+                    navController.navigate(Screen.MyBookings.route)
                 },
                 onBookClick = {
                     navController.navigate(Screen.Booking.createRoute("custom_unit"))
                 },
                 onProfileClick = {
-                    navController.navigate(Screen.MyBookings.route)
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -207,6 +189,9 @@ fun SetupNavGraph(
                 },
                 onBookClick = { id, config ->
                     navController.navigate(Screen.Booking.createRoute(id, config))
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -217,6 +202,9 @@ fun SetupNavGraph(
                 },
                 onBookClick = { id ->
                     navController.navigate(Screen.Booking.createRoute(id))
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -238,6 +226,9 @@ fun SetupNavGraph(
                 },
                 onBack = {
                     navController.popBackStack()
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -255,11 +246,14 @@ fun SetupNavGraph(
                 onCatalogClick = {
                     navController.navigate(Screen.Catalog.route)
                 },
+                onTrackingClick = {
+                    // Already here
+                },
                 onBookClick = {
                     navController.navigate(Screen.Booking.createRoute("custom_unit"))
                 },
-                onLiveFeedClick = {
-                    navController.navigate(Screen.LiveFeed.route)
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -276,6 +270,15 @@ fun SetupNavGraph(
                 },
                 onRevenueClick = {
                     navController.navigate(Screen.AdminRevenue.route)
+                },
+                onCalendarClick = {
+                    navController.navigate(Screen.AdminCalendar.route)
+                },
+                onServicesClick = {
+                    navController.navigate(Screen.AdminServices.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -292,6 +295,15 @@ fun SetupNavGraph(
                 },
                 onRevenueClick = {
                     navController.navigate(Screen.AdminRevenue.route)
+                },
+                onCalendarClick = {
+                    navController.navigate(Screen.AdminCalendar.route)
+                },
+                onServicesClick = {
+                    navController.navigate(Screen.AdminServices.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -311,6 +323,15 @@ fun SetupNavGraph(
                 },
                 onRevenueClick = {
                     navController.navigate(Screen.AdminRevenue.route)
+                },
+                onCalendarClick = {
+                    navController.navigate(Screen.AdminCalendar.route)
+                },
+                onServicesClick = {
+                    navController.navigate(Screen.AdminServices.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -327,6 +348,73 @@ fun SetupNavGraph(
                 },
                 onQueueClick = {
                     navController.navigate(Screen.AdminQueue.route)
+                },
+                onCalendarClick = {
+                    navController.navigate(Screen.AdminCalendar.route)
+                },
+                onServicesClick = {
+                    navController.navigate(Screen.AdminServices.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
+                }
+            )
+        }
+        composable(route = Screen.AdminCalendar.route) {
+            AdminCalendarScreen(
+                onLogout = {
+                    authViewModel.logout()
+                },
+                onHomeClick = {
+                    navController.navigate(Screen.AdminDashboard.route)
+                },
+                onInventoryClick = {
+                    navController.navigate(Screen.AdminInventory.route)
+                },
+                onQueueClick = {
+                    navController.navigate(Screen.AdminQueue.route)
+                },
+                onServicesClick = {
+                    navController.navigate(Screen.AdminServices.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.Profile.route)
+                }
+            )
+        }
+        composable(route = Screen.AdminServices.route) {
+            AdminServiceManagementScreen(
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(route = Screen.Profile.route) {
+            val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
+            val isAdmin = (sessionState as? SessionState.Authenticated)?.role == "ADMIN"
+            
+            ProfileScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onHomeClick = {
+                    if (isAdmin) navController.navigate(Screen.AdminDashboard.route)
+                    else navController.navigate(Screen.Dashboard.route)
+                },
+                onCatalogClick = {
+                    if (isAdmin) navController.navigate(Screen.AdminInventory.route)
+                    else navController.navigate(Screen.Catalog.route)
+                },
+                onTrackingClick = {
+                    if (isAdmin) navController.navigate(Screen.AdminQueue.route)
+                    else navController.navigate(Screen.MyBookings.route)
+                },
+                onBookClick = {
+                    // Admin might not need to book for themselves, but if they do, use the same screen
+                    navController.navigate(Screen.Booking.createRoute("custom_unit"))
                 }
             )
         }

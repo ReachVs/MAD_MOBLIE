@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,12 +34,11 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val state by viewModel.authState.collectAsState()
+    val state by viewModel.authState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state) {
-        if (state is AuthState.Success) {
-            val isAdmin = email.contains("admin", ignoreCase = true)
-            onLoginSuccess(isAdmin)
+        (state as? AuthState.Success)?.let {
+            onLoginSuccess(it.isAdmin)
         }
     }
 
@@ -143,7 +143,7 @@ fun LoginScreen(
                     "INITIALIZE NEW ACCOUNT",
                     color = Primary,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
             }
             
@@ -176,10 +176,12 @@ fun TechnicalTextField(
             leadingIcon = { Icon(icon, contentDescription = null, tint = Primary) },
             visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Primary,
-                unfocusedBorderColor = Color.LightGray,
+                focusedBorderColor = Color.Black,
+                unfocusedBorderColor = Color.Black,
                 focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
+                unfocusedContainerColor = Color.White,
+                focusedLabelColor = Color.Black,
+                unfocusedLabelColor = Neutral
             ),
             singleLine = true
         )

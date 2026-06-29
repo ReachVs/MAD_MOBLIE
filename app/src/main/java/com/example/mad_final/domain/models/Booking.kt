@@ -12,7 +12,13 @@ data class Booking(
     val serviceNotes: String = "",
     val workDescription: String = "",
     val technicianName: String = "Unassigned",
-    val priority: Priority = Priority.NORMAL
+    val priority: Priority = Priority.NORMAL,
+    val usedPartIds: List<Int> = emptyList(),
+    // Manual specs for custom units
+    val customBrand: String? = null,
+    val customModel: String? = null,
+    val customYear: String? = null,
+    val descriptionDetail: String? = null
 )
 
 enum class BookingStatus {

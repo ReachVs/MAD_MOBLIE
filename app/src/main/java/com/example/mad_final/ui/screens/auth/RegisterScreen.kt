@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,18 +26,18 @@ import com.example.mad_final.ui.theme.Neutral
 
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (Boolean) -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val state by viewModel.authState.collectAsState()
+    val state by viewModel.authState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state) {
-        if (state is AuthState.Success) {
-            onRegisterSuccess()
+        (state as? AuthState.Success)?.let {
+            onRegisterSuccess(it.isAdmin)
         }
     }
 
@@ -141,7 +142,7 @@ fun RegisterScreen(
                     "BACK TO AUTHENTICATION",
                     color = Primary,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
             }
             

@@ -7,5 +7,7 @@ interface ServiceRepository {
     fun getServices(): Flow<List<WorkshopService>>
     fun getServiceByIdFlow(id: String): Flow<WorkshopService?>
     suspend fun getServiceById(id: String): WorkshopService?
+    suspend fun insertService(service: WorkshopService)
     suspend fun updateService(service: WorkshopService)
+    suspend fun deleteService(service: WorkshopService)
 }

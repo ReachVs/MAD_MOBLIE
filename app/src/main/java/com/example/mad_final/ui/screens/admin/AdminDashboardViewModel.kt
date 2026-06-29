@@ -6,9 +6,11 @@ import com.example.mad_final.domain.models.Booking
 import com.example.mad_final.domain.models.BookingStatus
 import com.example.mad_final.domain.repository.BookingRepository
 import com.example.mad_final.domain.models.Priority
+import com.example.mad_final.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -17,8 +19,15 @@ import javax.inject.Inject
 @HiltViewModel
 class AdminDashboardViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
-    private val serviceRepository: com.example.mad_final.domain.repository.ServiceRepository
+    private val serviceRepository: com.example.mad_final.domain.repository.ServiceRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    val userName: StateFlow<String?> = authRepository.getUserName()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val adminImageUri: StateFlow<String?> = authRepository.getAdminImageUri()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val bookings: StateFlow<List<Booking>> = bookingRepository.getBookings()
         .stateIn(
@@ -29,13 +38,15 @@ class AdminDashboardViewModel @Inject constructor(
 
     val dailyRevenue: StateFlow<Double> = bookingRepository.getBookings()
         .map { list ->
-            val today = java.util.Calendar.getInstance().apply {
+            val calendar = java.util.Calendar.getInstance().apply {
                 set(java.util.Calendar.HOUR_OF_DAY, 0)
                 set(java.util.Calendar.MINUTE, 0)
                 set(java.util.Calendar.SECOND, 0)
                 set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            list.filter { it.startDate >= today }.sumOf { it.totalPrice }
+            }
+            val todayStart = calendar.timeInMillis
+            val todayEnd = todayStart + 86400000
+            list.filter { it.startDate in todayStart until todayEnd && it.status != BookingStatus.CANCELLED }.sumOf { it.totalPrice }
         }
         .stateIn(
             scope = viewModelScope,
@@ -44,7 +55,7 @@ class AdminDashboardViewModel @Inject constructor(
         )
 
     val lifetimeRevenue: StateFlow<Double> = bookingRepository.getBookings()
-        .map { list -> list.sumOf { it.totalPrice } }
+        .map { list -> list.filter { it.status != BookingStatus.CANCELLED }.sumOf { it.totalPrice } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -86,8 +97,8 @@ class AdminDashboardViewModel @Inject constructor(
             val todayStart = calendar.timeInMillis
             val yesterdayStart = todayStart - 86400000
             
-            val todayRevenue = list.filter { it.startDate >= todayStart }.sumOf { it.totalPrice }
-            val yesterdayRevenue = list.filter { it.startDate in yesterdayStart until todayStart }.sumOf { it.totalPrice }
+            val todayRevenue = list.filter { it.startDate >= todayStart && it.status != BookingStatus.CANCELLED }.sumOf { it.totalPrice }
+            val yesterdayRevenue = list.filter { it.startDate in yesterdayStart until todayStart && it.status != BookingStatus.CANCELLED }.sumOf { it.totalPrice }
             
             if (yesterdayRevenue == 0.0) {
                 if (todayRevenue > 0) 100.0 else 0.0
@@ -108,20 +119,6 @@ class AdminDashboardViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    fun updateServicePrice(serviceId: String, newPrice: String) {
-        viewModelScope.launch {
-            val service = serviceRepository.getServiceById(serviceId)
-            service?.let {
-                // Ensure the price has a $ prefix if it's a numeric value
-                val formattedPrice = if (newPrice.isNotEmpty() && !newPrice.startsWith("$")) {
-                    if (newPrice.all { it.isDigit() || it == '.' }) "$$newPrice" else newPrice
-                } else {
-                    newPrice
-                }
-                serviceRepository.updateService(it.copy(price = formattedPrice))
-            }
-        }
-    }
 
     val revenueData: StateFlow<List<Double>> = bookingRepository.getBookings()
         .map { list ->
@@ -137,7 +134,7 @@ class AdminDashboardViewModel @Inject constructor(
                     set(java.util.Calendar.MILLISECOND, 0)
                 }.timeInMillis
                 val endOfDay = startOfDay + 86400000
-                list.filter { it.startDate in startOfDay until endOfDay }.sumOf { it.totalPrice }
+                list.filter { it.startDate in startOfDay until endOfDay && it.status != BookingStatus.CANCELLED }.sumOf { it.totalPrice }
             }.reversed()
         }
         .stateIn(
@@ -146,7 +143,36 @@ class AdminDashboardViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    fun createWorkOrder(motorcycleId: String, userId: String, description: String) {
+    val revenueByCategory: StateFlow<Map<String, Double>> = combine(
+        bookingRepository.getBookings(),
+        serviceRepository.getServices()
+    ) { bookingList, serviceList ->
+        val validBookings = bookingList.filter { it.status != BookingStatus.CANCELLED }
+        val categoryTotals = mutableMapOf<String, Double>()
+        
+        validBookings.forEach { booking ->
+            val titles = booking.workDescription.split(", ").map { it.trim() }
+            val matchedServices = serviceList.filter { titles.contains(it.title) }
+            
+            if (matchedServices.isNotEmpty()) {
+                val pricePerService = booking.totalPrice / matchedServices.size
+                matchedServices.forEach { service ->
+                    val current = categoryTotals.getOrDefault(service.category.uppercase(), 0.0)
+                    categoryTotals[service.category.uppercase()] = current + pricePerService
+                }
+            } else {
+                val current = categoryTotals.getOrDefault("UNSPECIFIED", 0.0)
+                categoryTotals["UNSPECIFIED"] = current + booking.totalPrice
+            }
+        }
+        categoryTotals
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
+
+    fun createWorkOrder(motorcycleId: String, userId: String, description: String, price: Double = 150.0) {
         viewModelScope.launch {
             val booking = Booking(
                 id = java.util.UUID.randomUUID().toString(),
@@ -154,12 +180,13 @@ class AdminDashboardViewModel @Inject constructor(
                 userId = userId,
                 startDate = System.currentTimeMillis(),
                 endDate = System.currentTimeMillis() + 86400000,
-                totalPrice = 150.0,
+                totalPrice = price,
                 status = BookingStatus.PENDING,
                 paymentStatus = com.example.mad_final.domain.models.PaymentStatus.UNPAID,
                 workDescription = description,
                 technicianName = "Unassigned",
-                priority = Priority.NORMAL
+                priority = Priority.NORMAL,
+                descriptionDetail = "Admin created work order"
             )
             bookingRepository.createBooking(booking)
         }

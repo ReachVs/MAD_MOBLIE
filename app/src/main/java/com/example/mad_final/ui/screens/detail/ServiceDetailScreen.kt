@@ -4,7 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,10 +16,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 
 import com.example.mad_final.ui.theme.Primary
@@ -34,10 +38,12 @@ private val GridColor = Color(0xFFE2E8F0)
 fun ServiceDetailScreen(
     onBackClick: () -> Unit,
     onBookClick: (String, String) -> Unit,
+    onProfileClick: () -> Unit,
     viewModel: ServiceDetailViewModel = hiltViewModel()
 ) {
-    val service by viewModel.service.collectAsState()
-    val selectedCapacity by viewModel.selectedCapacity.collectAsState()
+    val service by viewModel.service.collectAsStateWithLifecycle()
+    val selectedCapacity by viewModel.selectedCapacity.collectAsStateWithLifecycle()
+    val userImageUri by viewModel.userImageUri.collectAsStateWithLifecycle()
 
     if (service == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -66,7 +72,22 @@ fun ServiceDetailScreen(
                 title = { Text("SERVICE SPECIFICATIONS", fontWeight = FontWeight.Black, letterSpacing = 2.sp, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onProfileClick) {
+                        AsyncImage(
+                            model = userImageUri,
+                            contentDescription = "User Profile",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, Color.Black, CircleShape),
+                            contentScale = ContentScale.Crop,
+                            placeholder = rememberVectorPainter(Icons.Default.Person),
+                            error = rememberVectorPainter(Icons.Default.Person)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
@@ -111,37 +132,67 @@ fun ServiceDetailScreen(
                 )
 
                 Column(modifier = Modifier.padding(24.dp)) {
-                    Surface(
-                        color = Secondary,
-                        shape = RoundedCornerShape(0.dp)
-                    ) {
-                        Text(
-                            svc.category.uppercase(),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            color = Secondary,
+                            shape = RoundedCornerShape(0.dp)
+                        ) {
+                            Text(
+                                svc.category.uppercase(),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        if (svc.subCategory != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                color = Color.Black,
+                                shape = RoundedCornerShape(0.dp)
+                            ) {
+                                Text(
+                                    svc.subCategory.uppercase(),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        svc.title.uppercase(),
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Black,
-                        lineHeight = 38.sp,
-                        letterSpacing = (-1).sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        svc.price,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.Black
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                svc.title.uppercase(),
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Black,
+                                lineHeight = 38.sp,
+                                letterSpacing = (-1).sp
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "$${svc.price}",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.Black
+                            )
+                            Text(
+                                svc.duration.uppercase(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Secondary
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 

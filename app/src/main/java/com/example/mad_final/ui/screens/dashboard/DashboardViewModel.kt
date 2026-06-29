@@ -5,11 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.mad_final.domain.models.Booking
 import com.example.mad_final.domain.models.Motorcycle
 import com.example.mad_final.domain.repository.BookingRepository
-import com.example.mad_final.domain.repository.MotorcycleRepository
 import com.example.mad_final.domain.repository.AuthRepository
+import com.example.mad_final.domain.repository.MotorcycleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -20,14 +21,23 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
-    private val motorcycleRepository: MotorcycleRepository,
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    val bookings: StateFlow<List<Booking>> = authRepository.getUserEmail()
-        .flatMapLatest { email ->
-            if (email != null) {
-                bookingRepository.getBookingsByUserId(email)
+    val userName: StateFlow<String?> = authRepository.getUserName()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val userImageUri: StateFlow<String?> = authRepository.getUserImageUri()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val userRole: StateFlow<String?> = authRepository.getUserRole()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+
+    val bookings: StateFlow<List<Booking>> = authRepository.getUserId()
+        .flatMapLatest { userId ->
+            if (userId != null) {
+                bookingRepository.getBookingsByUserId(userId)
             } else {
                 flowOf(emptyList())
             }
@@ -37,16 +47,4 @@ class DashboardViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val motorcycles: StateFlow<List<Motorcycle>> = bookings.flatMapLatest { userBookings ->
-        val bookedMotorcycleIds = userBookings.map { it.motorcycleId }.distinct()
-        motorcycleRepository.getMotorcycles().map { allMotorcycles: List<Motorcycle> ->
-            allMotorcycles.filter { it.id in bookedMotorcycleIds }
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
 }

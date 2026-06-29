@@ -12,12 +12,28 @@ import com.example.mad_final.domain.repository.BookingRepository
 import com.example.mad_final.domain.repository.MotorcycleRepository
 import com.example.mad_final.ui.util.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+
+data class BookingUiState(
+    val step: Int = 1,
+    val manufacturer: String = "",
+    val model: String = "",
+    val year: String = "",
+    val serviceIntent: String = "",
+    val configuration: String = "",
+    val totalPrice: Double = 0.0,
+    val selectedDate: Long? = System.currentTimeMillis(),
+    val selectedTime: String = "09:00 AM",
+    val services: List<com.example.mad_final.domain.models.WorkshopService> = emptyList(),
+    val selectedServiceIds: Set<String> = emptySet(),
+    val userImageUri: String? = null,
+    val isFromCatalog: Boolean = false,
+    val isMotorcycleValid: Boolean = false,
+    val isServiceValid: Boolean = false
+)
 
 @HiltViewModel
 class BookingViewModel @Inject constructor(
@@ -25,157 +41,153 @@ class BookingViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
     private val serviceRepository: com.example.mad_final.domain.repository.ServiceRepository,
     private val authRepository: AuthRepository,
+    private val cartRepository: com.example.mad_final.domain.repository.CartRepository,
     private val notificationHelper: NotificationHelper,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val motorcycleId: String? = savedStateHandle["motorcycleId"]
     private val config: String? = savedStateHandle["config"]
+    private val motorcycleId: String? = savedStateHandle["motorcycleId"]
 
-    private val _motorcycle = MutableStateFlow<Motorcycle?>(null)
-    val motorcycle: StateFlow<Motorcycle?> = _motorcycle
-
-    private val _service = MutableStateFlow<com.example.mad_final.domain.models.WorkshopService?>(null)
-    val service: StateFlow<com.example.mad_final.domain.models.WorkshopService?> = _service
-
-    private val _bookingStep = MutableStateFlow(1)
-    val bookingStep: StateFlow<Int> = _bookingStep
-    
-    // Vehicle Details State
-    private val _manufacturer = MutableStateFlow("")
-    val manufacturer: StateFlow<String> = _manufacturer
-    
-    private val _model = MutableStateFlow("")
-    val model: StateFlow<String> = _model
-    
-    private val _year = MutableStateFlow("")
-    val year: StateFlow<String> = _year
-    
-    private val _serviceIntent = MutableStateFlow("PERFORMANCE TUNING")
-    val serviceIntent: StateFlow<String> = _serviceIntent
-
-    private val _engineCapacity = MutableStateFlow("1000cc")
-    val engineCapacity: StateFlow<String> = _engineCapacity
-
-    private val _configuration = MutableStateFlow("")
-    val configuration: StateFlow<String> = _configuration
-
-    private val _totalPrice = MutableStateFlow(0.0)
-    val totalPrice: StateFlow<Double> = _totalPrice
-
-    private val _selectedDate = MutableStateFlow<Long?>(System.currentTimeMillis())
-    val selectedDate: StateFlow<Long?> = _selectedDate
-
-    private val _services = MutableStateFlow<List<com.example.mad_final.domain.models.WorkshopService>>(emptyList())
-    val services: StateFlow<List<com.example.mad_final.domain.models.WorkshopService>> = _services
+    private val _uiState = MutableStateFlow(BookingUiState(isFromCatalog = !config.isNullOrEmpty()))
+    val uiState: StateFlow<BookingUiState> = _uiState.asStateFlow()
 
     init {
-        loadData()
-        loadAllServices()
+        initializeData()
+        observeExternalStates()
     }
 
-    private fun loadAllServices() {
+    private fun initializeData() {
+        config?.let {
+            if (it.isNotEmpty()) {
+                val ids = it.split(",").toSet()
+                cartRepository.setSelectedServices(ids)
+                _uiState.update { state -> state.copy(configuration = it) }
+            }
+        }
+        
         viewModelScope.launch {
-            serviceRepository.getServices().collect {
-                _services.value = it
-                syncPriceWithIntent(it)
-            }
-        }
-    }
-
-    private fun syncPriceWithIntent(allServices: List<com.example.mad_final.domain.models.WorkshopService>) {
-        val intent = _serviceIntent.value
-        if (intent.isNotEmpty()) {
-            val matching = allServices.find { it.title.equals(intent, ignoreCase = true) }
-            matching?.let {
-                _service.value = it
-                _totalPrice.value = it.price.replace("$", "").toDoubleOrNull() ?: 0.0
-            }
-        }
-    }
-
-    private fun loadData() {
-        config?.let { _configuration.value = it }
-        motorcycleId?.let { id ->
-            viewModelScope.launch {
-                // Try to load as service first
-                val serviceData = serviceRepository.getServiceById(id)
-                if (serviceData != null) {
-                    _service.value = serviceData
-                    // Use the exact title from the catalog as the intent
-                    _serviceIntent.value = serviceData.title.uppercase()
-                    // Extract price: "$150" -> 150.0
-                    _totalPrice.value = serviceData.price.replace("$", "").toDoubleOrNull() ?: 0.0
+            serviceRepository.getServices().collect { allServices ->
+                _uiState.update { it.copy(services = allServices) }
+                if (cartRepository.selectedServiceIds.value.isNotEmpty()) {
+                    updateIntentFromSelection(allServices, cartRepository.selectedServiceIds.value)
                 } else {
-                    // Fallback to motorcycle
-                    _motorcycle.value = motorcycleRepository.getMotorcycleById(id)
-                    _motorcycle.value?.let {
-                        _manufacturer.value = it.brand
-                        _model.value = it.model
-                        _year.value = it.year.toString()
-                    }
+                    loadInitialMachineData(allServices)
                 }
             }
         }
     }
 
-    fun updateManufacturer(value: String) { _manufacturer.value = value }
-    fun updateModel(value: String) { _model.value = value }
-    fun updateYear(value: String) { _year.value = value }
-    fun updateServiceIntent(value: String) {
-        _serviceIntent.value = value
-        val matching = _services.value.find { it.title.equals(value, ignoreCase = true) }
-        if (matching != null) {
-            _service.value = matching
-            _totalPrice.value = matching.price.replace("$", "").toDoubleOrNull() ?: 0.0
-        } else {
-            // Manual intent selection fallback logic
-            val price = when {
-                value.contains("MAINTENANCE", ignoreCase = true) -> 150.0
-                value.contains("OVERHAUL", ignoreCase = true) -> 1200.0
-                value.contains("ELECTRICAL", ignoreCase = true) -> 250.0
-                value.contains("TUNING", ignoreCase = true) || value.contains("PERFORMANCE", ignoreCase = true) -> 450.0
-                else -> 0.0
+    private fun observeExternalStates() {
+        viewModelScope.launch {
+            combine(
+                cartRepository.selectedServiceIds,
+                authRepository.getUserImageUri(),
+                _uiState.map { it.manufacturer }.distinctUntilChanged(),
+                _uiState.map { it.model }.distinctUntilChanged(),
+                _uiState.map { it.year }.distinctUntilChanged()
+            ) { selectedIds, imageUri, brand, model, year ->
+                val isValidMachine = brand.isNotBlank() && model.isNotBlank() && year.isNotBlank()
+                val isValidService = selectedIds.isNotEmpty()
+                val total = calculateTotal(selectedIds)
+                
+                _uiState.update { it.copy(
+                    selectedServiceIds = selectedIds,
+                    userImageUri = imageUri,
+                    isMotorcycleValid = isValidMachine,
+                    isServiceValid = isValidService,
+                    totalPrice = total
+                ) }
+            }.collectLatest { }
+        }
+    }
+
+    private fun calculateTotal(selectedIds: Set<String>): Double {
+        return _uiState.value.services
+            .filter { selectedIds.contains(it.id) }
+            .sumOf { it.price }
+    }
+
+    private suspend fun loadInitialMachineData(allServices: List<com.example.mad_final.domain.models.WorkshopService>) {
+        motorcycleId?.let { id ->
+            if (id == "custom_unit") return@let
+            serviceRepository.getServiceById(id)?.let { service ->
+                cartRepository.setSelectedServices(setOf(service.id))
+                _uiState.update { it.copy(serviceIntent = service.title.uppercase()) }
+            } ?: motorcycleRepository.getMotorcycleById(id)?.let { mc ->
+                _uiState.update { it.copy(
+                    manufacturer = mc.brand,
+                    model = mc.model,
+                    year = mc.year.toString()
+                ) }
             }
-            _totalPrice.value = price
-            _service.value = null
-        }
-    }
-    fun updateEngineCapacity(value: String) { _engineCapacity.value = value }
-    fun updateConfiguration(value: String) { _configuration.value = value }
-    fun updateSelectedDate(value: Long?) { _selectedDate.value = value }
-
-    fun nextStep() {
-        if (_bookingStep.value < 5) {
-            _bookingStep.value += 1
         }
     }
 
-    fun previousStep() {
-        if (_bookingStep.value > 1) {
-            _bookingStep.value -= 1
-        }
+    private fun updateIntentFromSelection(services: List<com.example.mad_final.domain.models.WorkshopService>, ids: Set<String>) {
+        val firstSelected = services.find { ids.contains(it.id) }
+        _uiState.update { it.copy(serviceIntent = firstSelected?.title ?: "CUSTOM SERVICE") }
     }
+
+    fun updateManufacturer(value: String) = _uiState.update { it.copy(manufacturer = value) }
+    fun updateModel(value: String) = _uiState.update { it.copy(model = value) }
+    fun updateYear(value: String) = _uiState.update { it.copy(year = value) }
+    fun updateSelectedDate(value: Long?) = _uiState.update { it.copy(selectedDate = value) }
+    fun updateSelectedTime(value: String) = _uiState.update { it.copy(selectedTime = value) }
+
+    fun toggleService(serviceId: String) {
+        cartRepository.toggleService(serviceId)
+        updateIntentFromSelection(_uiState.value.services, cartRepository.selectedServiceIds.value)
+    }
+
+    fun nextStep() { if (_uiState.value.step < 5) _uiState.update { it.copy(step = it.step + 1) } }
+    fun previousStep() { if (_uiState.value.step > 1) _uiState.update { it.copy(step = it.step - 1) } }
 
     fun confirmBooking() {
         viewModelScope.launch {
-            val userEmail = authRepository.getUserEmail().first() ?: "anonymous"
-            val booking = Booking(
+            val userId = authRepository.getUserId().first() 
+                ?: authRepository.getGuestId().first() 
+                ?: "guest_${UUID.randomUUID().toString().take(8)}".also { authRepository.saveGuestId(it) }
+
+            val state = _uiState.value
+            val selectedTitles = state.services
+                .filter { state.selectedServiceIds.contains(it.id) }
+                .joinToString(", ") { it.title }
+            
+            val calendar = java.util.Calendar.getInstance().apply {
+                timeInMillis = state.selectedDate ?: System.currentTimeMillis()
+                try {
+                    val hour = state.selectedTime.substring(0, 2).toInt()
+                    val minute = state.selectedTime.substring(3, 5).toInt()
+                    val isPM = state.selectedTime.contains("PM")
+                    set(java.util.Calendar.HOUR, if (hour == 12) 0 else hour)
+                    set(java.util.Calendar.MINUTE, minute)
+                    set(java.util.Calendar.AM_PM, if (isPM) java.util.Calendar.PM else java.util.Calendar.AM)
+                } catch (e: Exception) {
+                    set(java.util.Calendar.HOUR_OF_DAY, 9)
+                }
+            }
+
+            bookingRepository.createBooking(Booking(
                 id = UUID.randomUUID().toString(),
-                motorcycleId = motorcycleId ?: "custom_unit",
-                userId = userEmail,
-                startDate = _selectedDate.value ?: System.currentTimeMillis(),
-                endDate = (_selectedDate.value ?: System.currentTimeMillis()) + 86400000,
-                totalPrice = _totalPrice.value,
+                motorcycleId = "custom_unit",
+                userId = userId,
+                startDate = calendar.timeInMillis,
+                endDate = calendar.timeInMillis + 7200000,
+                totalPrice = state.totalPrice,
                 status = BookingStatus.CONFIRMED,
-                paymentStatus = PaymentStatus.PAID
-            )
-            bookingRepository.createBooking(booking)
-            notificationHelper.showBookingNotification(
-                "Booking Confirmed!",
-                "Your service request for ${_manufacturer.value} ${_model.value} (${_configuration.value}) has been logged."
-            )
-            _bookingStep.value = 5 // Confirmation step
+                paymentStatus = PaymentStatus.PAID,
+                serviceNotes = "Time: ${state.selectedTime}",
+                workDescription = selectedTitles,
+                customBrand = state.manufacturer,
+                customModel = state.model,
+                customYear = state.year,
+                descriptionDetail = state.serviceIntent
+            ))
+
+            notificationHelper.showBookingNotification("Booking Confirmed!", "Service scheduled for ${state.selectedTime}.")
+            cartRepository.clearCart()
+            nextStep()
         }
     }
 }

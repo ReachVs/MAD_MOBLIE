@@ -18,9 +18,13 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(request: LoginRequest): Result<AuthResponse> {
         return try {
             val response = api.login(request)
-            // Use the email from the response or check specifically for admin
-            val role = if (response.email.contains("admin", ignoreCase = true)) "ADMIN" else "CUSTOMER"
-            userPreferences.saveUserData(response.token, role, response.email)
+            userPreferences.saveUserData(
+                response.token, 
+                response.userId, 
+                response.role, 
+                response.email,
+                response.name
+            )
             Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
@@ -30,7 +34,13 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun register(request: RegisterRequest): Result<AuthResponse> {
         return try {
             val response = api.register(request)
-            userPreferences.saveUserData(response.token, "CUSTOMER", response.email)
+            userPreferences.saveUserData(
+                response.token, 
+                response.userId, 
+                response.role, 
+                response.email,
+                response.name
+            )
             Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
@@ -45,11 +55,49 @@ class AuthRepositoryImpl @Inject constructor(
         return userPreferences.authToken.map { it != null }
     }
 
+    override fun getUserId(): Flow<String?> {
+        return userPreferences.userId
+    }
+
     override fun getUserRole(): Flow<String?> {
         return userPreferences.userRole
     }
 
     override fun getUserEmail(): Flow<String?> {
         return userPreferences.userEmail
+    }
+
+    override fun getUserName(): Flow<String?> {
+        return userPreferences.userName
+    }
+
+    override fun getUserImageUri(): Flow<String?> {
+        return userPreferences.userImageUri
+    }
+
+    override fun getAdminImageUri(): Flow<String?> {
+        return userPreferences.adminImageUri
+    }
+
+    override fun getGuestId(): Flow<String?> {
+        return userPreferences.guestId
+    }
+
+    override suspend fun saveGuestId(id: String) {
+        userPreferences.saveGuestId(id)
+    }
+
+    override suspend fun updateProfile(name: String, email: String, imageUri: String?, isAdmin: Boolean) {
+        userPreferences.updateProfile(name, email, imageUri, isAdmin)
+    }
+
+    override suspend fun updatePassword(password: String): Result<Unit> {
+        return try {
+            // Ideally call API here
+            // api.updatePassword(password)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

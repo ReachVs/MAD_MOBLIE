@@ -15,7 +15,6 @@ val OnBackground = Color(0xFF1A1A1A)
 val OnSurface = Color(0xFF1A1A1A)
 
 // Status Colors
-val Success = Color(0xFF15803D)
 val Warning = Color(0xFFF59E0B)
 val Info = Color(0xFF3B82F6)
 val Error = Color(0xFFB91C1C)

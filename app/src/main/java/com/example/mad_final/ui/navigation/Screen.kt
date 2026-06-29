@@ -20,7 +20,9 @@ sealed class Screen(val route: String) {
     object AdminQueue : Screen("admin_queue")
     object AdminDashboard : Screen("admin_dashboard")
     object AdminRevenue : Screen("admin_revenue")
-    object LiveFeed : Screen("live_feed")
+    object AdminCalendar : Screen("admin_calendar")
+    object AdminServices : Screen("admin_services")
+    object Profile : Screen("profile")
     object Landing : Screen("landing")
     object Splash : Screen("splash")
 }

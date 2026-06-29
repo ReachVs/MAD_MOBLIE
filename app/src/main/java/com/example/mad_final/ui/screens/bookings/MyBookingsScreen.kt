@@ -6,8 +6,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
@@ -18,16 +19,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.mad_final.domain.models.Booking
 import com.example.mad_final.domain.models.BookingStatus
@@ -37,8 +41,6 @@ import com.example.mad_final.ui.navigation.Screen
 import com.example.mad_final.ui.theme.Neutral
 import com.example.mad_final.ui.theme.Primary
 import com.example.mad_final.ui.theme.Secondary
-import com.example.mad_final.ui.theme.Success
-import com.example.mad_final.ui.theme.Warning
 import com.example.mad_final.ui.theme.Info
 import kotlinx.coroutines.launch
 
@@ -49,11 +51,20 @@ fun MyBookingsScreen(
     onBack: () -> Unit,
     onHomeClick: () -> Unit = {},
     onCatalogClick: () -> Unit = {},
+    onTrackingClick: () -> Unit = {},
     onBookClick: () -> Unit = {},
-    onLiveFeedClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     viewModel: MyBookingsViewModel = hiltViewModel()
 ) {
-    val bookings by viewModel.bookings.collectAsState()
+    val bookings by viewModel.bookings.collectAsStateWithLifecycle()
+    val userImageUri by viewModel.userImageUri.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val activeBookings = bookings.filter { 
+        it.status != BookingStatus.COMPLETED && it.status != BookingStatus.CANCELLED 
+    }
+    val historyBookings = bookings.filter { 
+        it.status == BookingStatus.COMPLETED || it.status == BookingStatus.CANCELLED 
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -62,13 +73,15 @@ fun MyBookingsScreen(
         drawerContent = {
             AppDrawerContent(
                 currentRoute = Screen.MyBookings.route,
+                userName = userName,
+                userImageUri = userImageUri,
                 onNavigate = { route ->
                     when (route) {
                         Screen.Dashboard.route -> onHomeClick()
                         Screen.Catalog.route -> onCatalogClick()
                         Screen.MyBookings.route -> scope.launch { drawerState.close() }
-                        Screen.LiveFeed.route -> onLiveFeedClick()
                         Screen.Booking.createRoute("custom_unit") -> onBookClick()
+                        Screen.Profile.route -> onProfileClick()
                         else -> scope.launch { drawerState.close() }
                     }
                 },
@@ -81,15 +94,22 @@ fun MyBookingsScreen(
             topBar = {
                 MyBookingsTopBar(
                     onBack = onBack,
-                    onMenuClick = { scope.launch { drawerState.open() } }
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    userImageUri = userImageUri,
+                    onProfileClick = onProfileClick
                 )
             },
             bottomBar = {
-                MyBookingsBottomNavigation(
+                val hasActiveService = bookings.any { 
+                    it.status != BookingStatus.CANCELLED && it.status != BookingStatus.COMPLETED 
+                }
+                com.example.mad_final.ui.components.MadApeBottomNavigation(
+                    currentRoute = "tracking",
+                    hasActiveService = hasActiveService,
                     onHomeClick = onHomeClick,
                     onCatalogClick = onCatalogClick,
-                    onBookClick = onBookClick,
-                    onProfileClick = {}
+                    onTrackingClick = {},
+                    onBookClick = onBookClick
                 )
             }
         ) { paddingValues ->
@@ -115,7 +135,7 @@ fun MyBookingsScreen(
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Text(
-                                "SERVICE\nHISTORY",
+                                "SERVICE\nQUEUE",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,
                                 lineHeight = 30.sp,
@@ -130,13 +150,79 @@ fun MyBookingsScreen(
                         }
                     }
 
-                    items(bookings) { booking ->
-                        BookingTechnicalCard(booking = booking)
-                        Spacer(modifier = Modifier.height(16.dp))
+                    if (activeBookings.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "ACTIVE SERVICES", count = activeBookings.size)
+                        }
+
+                        items(activeBookings) { booking ->
+                            BookingTechnicalCard(
+                                booking = booking
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+
+                    if (historyBookings.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "SERVICE HISTORY", count = historyBookings.size)
+                        }
+
+                        items(historyBookings) { booking ->
+                            BookingTechnicalCard(
+                                booking = booking
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                    
+                    if (bookings.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "NO SERVICE RECORDS FOUND",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Neutral.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String, count: Int) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp,
+                color = Color.Black
+            )
+            Text(
+                "[$count]",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Neutral
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        HorizontalDivider(color = Color.Black, thickness = 2.dp)
     }
 }
 
@@ -171,12 +257,12 @@ fun BookingTechnicalCard(booking: Booking) {
 
                 Surface(
                     color = when (booking.status) {
-                        BookingStatus.REPAIR -> Warning
+                        BookingStatus.REPAIR -> Secondary
                         BookingStatus.WAITING_PART -> Secondary
-                        BookingStatus.READY_TO_PICK_UP -> Info
+                        BookingStatus.READY_TO_PICK_UP -> Primary
                         BookingStatus.CONFIRMED -> Primary
                         BookingStatus.PENDING -> Neutral
-                        BookingStatus.COMPLETED -> Success
+                        BookingStatus.COMPLETED -> Primary
                         BookingStatus.CANCELLED -> Neutral.copy(alpha = 0.5f)
                     },
                     shape = RoundedCornerShape(0.dp)
@@ -207,14 +293,67 @@ fun BookingTechnicalCard(booking: Booking) {
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TechnicalDetailItem(label = "UNIT ID", value = booking.motorcycleId.take(12).uppercase())
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        val machineName = when {
+                            booking.customBrand != null && booking.customModel != null -> "${booking.customBrand} ${booking.customModel}".uppercase()
+                            booking.motorcycleId == "custom_unit" -> "CUSTOM UNIT"
+                            else -> booking.motorcycleId.uppercase()
+                        }
+                        Text("MACHINE UNIT", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Neutral)
+                        Text(
+                            machineName,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val year = booking.customYear
+                        if (!year.isNullOrBlank()) {
+                            Text("YEAR: $year", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Neutral)
+                        }
+                    }
+                }
+
                 TechnicalDetailItem(
                     label = "TOTAL FEE",
                     value = "$${booking.totalPrice}",
                     isHighlight = true
                 )
+            }
+
+            if (!booking.descriptionDetail.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "TECHNICAL NOTE",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Neutral,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            booking.descriptionDetail,
+                            fontSize = 11.sp,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
             }
 
             if (booking.serviceNotes.isNotEmpty()) {
@@ -242,6 +381,20 @@ fun BookingTechnicalCard(booking: Booking) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                CustomIcon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    size = 14.dp,
+                    tint = Neutral
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    "ASSIGNED: ${booking.technicianName.uppercase()}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Neutral
+                )
+                Spacer(modifier = Modifier.width(16.dp))
                 CustomIcon(
                     Icons.Default.DateRange,
                     contentDescription = null,
@@ -295,7 +448,12 @@ fun CustomIcon(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyBookingsTopBar(onBack: () -> Unit, onMenuClick: () -> Unit = {}) {
+fun MyBookingsTopBar(
+    onBack: () -> Unit,
+    onMenuClick: () -> Unit = {},
+    userImageUri: String? = null,
+    onProfileClick: () -> Unit = {}
+) {
     CenterAlignedTopAppBar(
         title = {
             Text(
@@ -316,21 +474,20 @@ fun MyBookingsTopBar(onBack: () -> Unit, onMenuClick: () -> Unit = {}) {
             }
         },
         actions = {
-            IconButton(onClick = {}) {
-                val placeholderPainter = rememberVectorPainter(Icons.Default.Refresh)
-                val errorPainter = rememberVectorPainter(Icons.Default.Warning)
+            IconButton(onClick = onProfileClick) {
+                val placeholderPainter = rememberVectorPainter(Icons.Default.Person)
+                val errorPainter = rememberVectorPainter(Icons.Default.Person)
                 
                 AsyncImage(
-                    model = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop",
+                    model = userImageUri,
                     contentDescription = "User Profile",
                     modifier = Modifier
                         .size(32.dp)
-                        .border(1.dp, Color.Black),
+                        .clip(CircleShape)
+                        .border(1.dp, Color.Black, CircleShape),
                     contentScale = ContentScale.Crop,
                     placeholder = placeholderPainter,
-                    error = errorPainter,
-                    onLoading = { android.util.Log.d("MyBookings", "Loading profile image") },
-                    onError = { android.util.Log.e("MyBookings", "Error loading profile image", it.result.throwable) }
+                    error = errorPainter
                 )
             }
         },
@@ -349,70 +506,3 @@ fun MyBookingsTopBar(onBack: () -> Unit, onMenuClick: () -> Unit = {}) {
     )
 }
 
-@Composable
-fun MyBookingsBottomNavigation(
-    onHomeClick: () -> Unit,
-    onCatalogClick: () -> Unit,
-    onBookClick: () -> Unit,
-    onProfileClick: () -> Unit
-) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 0.dp,
-        modifier = Modifier.drawBehind {
-            drawLine(
-                color = Color.Black,
-                start = Offset(0f, 0f),
-                end = Offset(size.width, 0f),
-                strokeWidth = 2.dp.toPx()
-            )
-        }
-    ) {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = null) },
-            label = { Text("HOME", fontSize = 10.sp, fontWeight = FontWeight.Black) },
-            selected = false,
-            onClick = onHomeClick,
-            colors = NavigationBarItemDefaults.colors(
-                unselectedIconColor = Neutral,
-                unselectedTextColor = Neutral,
-                indicatorColor = Color.Transparent
-            )
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-            label = { Text("CATALOG", fontSize = 10.sp, fontWeight = FontWeight.Black) },
-            selected = false,
-            onClick = onCatalogClick,
-            colors = NavigationBarItemDefaults.colors(
-                unselectedIconColor = Neutral,
-                unselectedTextColor = Neutral,
-                indicatorColor = Color.Transparent
-            )
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.AddCircle, contentDescription = null) },
-            label = { Text("BOOK", fontSize = 10.sp, fontWeight = FontWeight.Black) },
-            selected = false,
-            onClick = onBookClick,
-            colors = NavigationBarItemDefaults.colors(
-                unselectedIconColor = Neutral,
-                unselectedTextColor = Neutral,
-                indicatorColor = Color.Transparent
-            )
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = null) },
-            label = { Text("PROFILE", fontSize = 10.sp, fontWeight = FontWeight.Black) },
-            selected = true,
-            onClick = onProfileClick,
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = Secondary,
-                selectedTextColor = Secondary,
-                unselectedIconColor = Neutral,
-                unselectedTextColor = Neutral,
-                indicatorColor = Color.Transparent
-            )
-        )
-    }
-}

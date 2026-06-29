@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,11 +25,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 
 import com.example.mad_final.ui.theme.Primary
@@ -38,16 +41,16 @@ import com.example.mad_final.ui.theme.Secondary
 import com.example.mad_final.ui.theme.Neutral
 import com.example.mad_final.ui.theme.Background
 
-private val OptimalGreen = Color(0xFF15803D)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MotorcycleDetailScreen(
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
+    onProfileClick: () -> Unit,
     viewModel: MotorcycleDetailViewModel = hiltViewModel()
 ) {
-    val motorcycle by viewModel.motorcycle.collectAsState()
+    val motorcycle by viewModel.motorcycle.collectAsStateWithLifecycle()
+    val userImageUri by viewModel.userImageUri.collectAsStateWithLifecycle()
 
     if (motorcycle == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -77,6 +80,21 @@ fun MotorcycleDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onProfileClick) {
+                        AsyncImage(
+                            model = userImageUri,
+                            contentDescription = "User Profile",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .border(1.dp, Color.Black, CircleShape),
+                            contentScale = ContentScale.Crop,
+                            placeholder = rememberVectorPainter(Icons.Default.Person),
+                            error = rememberVectorPainter(Icons.Default.Person)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
@@ -195,7 +213,7 @@ fun MotorcycleDetailScreen(
                                 Text("COMPLETED - OCT 12, 2023", fontSize = 12.sp, fontWeight = FontWeight.Black)
                             }
                             Spacer(modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = OptimalGreen, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
                         }
                     }
                     

@@ -4,16 +4,19 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mad_final.domain.models.WorkshopService
+import com.example.mad_final.domain.repository.AuthRepository
 import com.example.mad_final.domain.repository.ServiceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ServiceDetailViewModel @Inject constructor(
     private val serviceRepository: ServiceRepository,
+    private val authRepository: AuthRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -25,8 +28,20 @@ class ServiceDetailViewModel @Inject constructor(
     private val _selectedCapacity = MutableStateFlow("1000cc")
     val selectedCapacity: StateFlow<String> = _selectedCapacity
 
+    private val _userImageUri = MutableStateFlow<String?>(null)
+    val userImageUri: StateFlow<String?> = _userImageUri.asStateFlow()
+
     init {
         loadService()
+        loadUserImage()
+    }
+
+    private fun loadUserImage() {
+        viewModelScope.launch {
+            authRepository.getUserImageUri().collect {
+                _userImageUri.value = it
+            }
+        }
     }
 
     fun selectCapacity(capacity: String) {

@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +20,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.mad_final.ui.components.TechnicalGridBackground
 import com.example.mad_final.ui.navigation.Screen
@@ -41,7 +42,6 @@ import com.example.mad_final.ui.theme.Primary
 import com.example.mad_final.ui.theme.Secondary
 import com.example.mad_final.ui.theme.Neutral
 import com.example.mad_final.ui.theme.Background
-import com.example.mad_final.ui.theme.Success
 import com.example.mad_final.ui.theme.Warning
 import com.example.mad_final.ui.theme.Info
 import com.example.mad_final.ui.theme.LightGrid
@@ -61,76 +61,44 @@ fun AdminDashboardScreen(
     onInventoryClick: () -> Unit = {},
     onQueueClick: () -> Unit = {},
     onRevenueClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {},
+    onServicesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
-    val bookings by viewModel.bookings.collectAsState()
-    val dailyRevenue by viewModel.dailyRevenue.collectAsState()
-    val dailyRevenueGrowth by viewModel.dailyRevenueGrowth.collectAsState()
-    val lifetimeRevenue by viewModel.lifetimeRevenue.collectAsState()
-    val totalCustomers by viewModel.totalCustomers.collectAsState()
-    val activeOrdersCount by viewModel.activeOrdersCount.collectAsState()
-    val urgentTasksCount by viewModel.urgentTasksCount.collectAsState()
-    val revenueData by viewModel.revenueData.collectAsState()
-    val services by viewModel.services.collectAsState()
+    val bookings by viewModel.bookings.collectAsStateWithLifecycle()
+    val dailyRevenue by viewModel.dailyRevenue.collectAsStateWithLifecycle()
+    val dailyRevenueGrowth by viewModel.dailyRevenueGrowth.collectAsStateWithLifecycle()
+    val lifetimeRevenue by viewModel.lifetimeRevenue.collectAsStateWithLifecycle()
+    val totalCustomers by viewModel.totalCustomers.collectAsStateWithLifecycle()
+    val activeOrdersCount by viewModel.activeOrdersCount.collectAsStateWithLifecycle()
+    val urgentTasksCount by viewModel.urgentTasksCount.collectAsStateWithLifecycle()
+    val revenueData by viewModel.revenueData.collectAsStateWithLifecycle()
+    val services by viewModel.services.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val adminImageUri by viewModel.adminImageUri.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     
     var showAddWorkOrderDialog by remember { mutableStateOf(false) }
-    var showEditPriceDialog by remember { mutableStateOf<com.example.mad_final.domain.models.WorkshopService?>(null) }
     
     var motorcycleId by remember { mutableStateOf("") }
     var userId by remember { mutableStateOf("") }
     var workDescription by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("150.0") }
+    var selectedServiceId by remember { mutableStateOf<String?>(null) }
 
-    if (showEditPriceDialog != null) {
-        var newPrice by remember { mutableStateOf(showEditPriceDialog?.price ?: "") }
-        AlertDialog(
-            onDismissRequest = { showEditPriceDialog = null },
-            title = { Text("EDIT SERVICE PRICE", fontWeight = FontWeight.Black) },
-            text = {
-                Column {
-                    Text(showEditPriceDialog?.title ?: "", fontWeight = FontWeight.Black)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newPrice,
-                        onValueChange = { newPrice = it },
-                        label = { Text("New Price", fontWeight = FontWeight.Black) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateServicePrice(showEditPriceDialog!!.id, newPrice)
-                        showEditPriceDialog = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(0.dp)
-                ) {
-                    Text("SAVE", fontWeight = FontWeight.Black)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditPriceDialog = null }) {
-                    Text("CANCEL", fontWeight = FontWeight.Black, color = Neutral)
-                }
-            },
-            shape = RoundedCornerShape(0.dp)
-        )
-    }
 
     if (showAddWorkOrderDialog) {
         AlertDialog(
             onDismissRequest = { showAddWorkOrderDialog = false },
             title = { Text("NEW WORK ORDER", fontWeight = FontWeight.Black) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = motorcycleId,
                         onValueChange = { motorcycleId = it },
@@ -145,6 +113,28 @@ fun AdminDashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(0.dp)
                     )
+                    
+                    Text("Select Service Type", fontSize = 12.sp, fontWeight = FontWeight.Black)
+                    services.forEach { s ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    selectedServiceId = s.id
+                                    workDescription = s.title
+                                    price = s.price.toString()
+                                }
+                        ) {
+                            RadioButton(selected = selectedServiceId == s.id, onClick = {
+                                selectedServiceId = s.id
+                                workDescription = s.title
+                                price = s.price.toString()
+                            })
+                            Text(s.title, fontSize = 12.sp)
+                        }
+                    }
+
                     OutlinedTextField(
                         value = workDescription,
                         onValueChange = { workDescription = it },
@@ -152,12 +142,23 @@ fun AdminDashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(0.dp)
                     )
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { price = it },
+                        label = { Text("Price ($)", fontWeight = FontWeight.Black) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(0.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        )
+                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.createWorkOrder(motorcycleId, userId, workDescription)
+                        val finalPrice = price.toDoubleOrNull() ?: 150.0
+                        viewModel.createWorkOrder(motorcycleId, userId, workDescription, finalPrice)
                         showAddWorkOrderDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
@@ -175,6 +176,7 @@ fun AdminDashboardScreen(
         )
     }
 
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -186,25 +188,42 @@ fun AdminDashboardScreen(
                     scope.launch { drawerState.close() }
                     onRevenueClick()
                 },
+                onCalendarClick = {
+                    scope.launch { drawerState.close() }
+                    onCalendarClick()
+                },
+                onServicesClick = {
+                    scope.launch { drawerState.close() }
+                    onServicesClick()
+                },
+                onProfileClick = {
+                    scope.launch { drawerState.close() }
+                    onProfileClick()
+                },
                 onLogout = onLogout,
                 onClose = {
                     scope.launch { drawerState.close() }
                 },
-                currentRoute = Screen.AdminDashboard.route
+                currentRoute = Screen.AdminDashboard.route,
+                userName = userName,
+                userImageUri = adminImageUri
             )
         }
     ) {
         Scaffold(
             topBar = { 
                 AdminTopBar(
+                    userImageUri = adminImageUri,
                     onMenuClick = {
                         scope.launch { drawerState.open() }
-                    }
+                    },
+                    onProfileClick = onProfileClick,
+                    onCalendarClick = onCalendarClick
                 ) 
             },
             bottomBar = { 
                 AdminBottomNavigation(
-                    onHomeClick = {},
+                    onDashboardClick = {},
                     onInventoryClick = onInventoryClick,
                     onQueueClick = onQueueClick,
                     currentRoute = Screen.AdminDashboard.route
@@ -239,14 +258,29 @@ fun AdminDashboardScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 24.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Bottom
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                "DASHBOARD",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = (-1).sp
-                            )
+                            Column {
+                                Text(
+                                    "DASHBOARD",
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = (-1).sp
+                                )
+                                Surface(
+                                    color = Secondary,
+                                    shape = RoundedCornerShape(0.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Text(
+                                        "SERVICE MODE ACTIVE",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                             Text(
                                 "UPDATED: 09:41 AM",
                                 fontSize = 10.sp,
@@ -257,7 +291,7 @@ fun AdminDashboardScreen(
                     }
 
                     item { 
-                        Box(modifier = Modifier.clickable { onQueueClick() }) {
+                        Box(modifier = Modifier.clickable { onCalendarClick() }) {
                             DashboardSummarySection(
                                 activeCount = activeOrdersCount,
                                 urgentCount = urgentTasksCount,
@@ -294,43 +328,6 @@ fun AdminDashboardScreen(
                     
                     item { Spacer(modifier = Modifier.height(32.dp)) }
 
-                    item {
-                        Text(
-                            "SERVICE PRICING MANAGEMENT",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
-                            color = Neutral
-                        )
-                    }
-
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-
-                    items(services) { service ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showEditPriceDialog = service },
-                            border = BorderStroke(2.dp, Color.Black),
-                            color = Color.White,
-                            shape = RoundedCornerShape(0.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(service.title.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp)
-                                    Text(service.category.uppercase(), fontSize = 10.sp, color = Neutral, fontWeight = FontWeight.Black)
-                                }
-                                Text(service.price, fontWeight = FontWeight.Black, fontSize = 18.sp, color = Secondary)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    
-                    item { Spacer(modifier = Modifier.height(32.dp)) }
                     
                     item {
                         Row(
@@ -387,7 +384,7 @@ fun AdminDashboardScreen(
                                     BookingStatus.READY_TO_PICK_UP -> Info
                                     BookingStatus.CONFIRMED -> Primary
                                     BookingStatus.PENDING -> LightGrid
-                                    BookingStatus.COMPLETED -> Success
+                                    BookingStatus.COMPLETED -> Primary
                                     else -> Neutral
                                 },
                                 isUrgent = booking.priority == Priority.URGENT || booking.priority == Priority.HIGH
@@ -490,13 +487,13 @@ fun RevenueCard(
                 }
                 if (!isLifetime) {
                     Surface(
-                        color = Color(0xFFDCFCE7),
+                        color = Primary.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(0.dp)
                     ) {
                         Text(
                             "+${String.format("%.1f", growth)}%",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = Color(0xFF166534),
+                            color = Primary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black
                         )

@@ -8,6 +8,7 @@ import com.example.mad_final.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -20,17 +21,27 @@ class MyBookingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val bookings: StateFlow<List<Booking>> = authRepository.getUserEmail()
-        .flatMapLatest { email ->
-            if (email != null) {
-                repository.getBookingsByUserId(email)
-            } else {
-                flowOf(emptyList())
-            }
+    val bookings: StateFlow<List<Booking>> = combine(
+        authRepository.getUserId(),
+        authRepository.getGuestId()
+    ) { userId: String?, guestId: String? ->
+        userId ?: guestId
+    }.flatMapLatest { id: String? ->
+        if (id != null) {
+            repository.getBookingsByUserId(id)
+        } else {
+            flowOf(emptyList())
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    }
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val userImageUri: StateFlow<String?> = authRepository.getUserImageUri()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val userName: StateFlow<String?> = authRepository.getUserName()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 }

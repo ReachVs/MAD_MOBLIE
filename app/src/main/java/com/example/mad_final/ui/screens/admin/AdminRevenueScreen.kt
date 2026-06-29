@@ -3,11 +3,13 @@ package com.example.mad_final.ui.screens.admin
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,11 +31,17 @@ fun AdminRevenueScreen(
     onHomeClick: () -> Unit = {},
     onInventoryClick: () -> Unit = {},
     onQueueClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {},
+    onServicesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
-    val dailyRevenue by viewModel.dailyRevenue.collectAsState()
-    val lifetimeRevenue by viewModel.lifetimeRevenue.collectAsState()
-    val revenueData by viewModel.revenueData.collectAsState()
+    val dailyRevenue by viewModel.dailyRevenue.collectAsStateWithLifecycle()
+    val lifetimeRevenue by viewModel.lifetimeRevenue.collectAsStateWithLifecycle()
+    val revenueData by viewModel.revenueData.collectAsStateWithLifecycle()
+    val revenueByCategory by viewModel.revenueByCategory.collectAsStateWithLifecycle()
+    val userName by viewModel.userName.collectAsStateWithLifecycle()
+    val adminImageUri by viewModel.adminImageUri.collectAsStateWithLifecycle()
     
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -46,9 +54,19 @@ fun AdminRevenueScreen(
                 onInventoryClick = onInventoryClick,
                 onQueueClick = onQueueClick,
                 onRevenueClick = { scope.launch { drawerState.close() } },
+                onCalendarClick = {
+                    scope.launch { drawerState.close() }
+                    onCalendarClick()
+                },
+                onServicesClick = {
+                    scope.launch { drawerState.close() }
+                    onServicesClick()
+                },
                 onLogout = onLogout,
                 onClose = { scope.launch { drawerState.close() } },
-                currentRoute = Screen.AdminRevenue.route
+                currentRoute = Screen.AdminRevenue.route,
+                userName = userName,
+                userImageUri = adminImageUri
             )
         }
     ) {
@@ -56,12 +74,15 @@ fun AdminRevenueScreen(
             topBar = { 
                 AdminTopBar(
                     title = "REVENUE ANALYTICS",
-                    onMenuClick = { scope.launch { drawerState.open() } }
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onProfileClick = onProfileClick,
+                    onCalendarClick = onCalendarClick,
+                    userImageUri = adminImageUri
                 ) 
             },
             bottomBar = { 
                 AdminBottomNavigation(
-                    onHomeClick = onHomeClick,
+                    onDashboardClick = onHomeClick,
                     onInventoryClick = onInventoryClick,
                     onQueueClick = onQueueClick,
                     currentRoute = Screen.AdminRevenue.route
@@ -115,11 +136,34 @@ fun AdminRevenueScreen(
                     
                     item { Spacer(modifier = Modifier.height(16.dp)) }
                     
-                    // Mock chart/list for categories
-                    item {
-                        CategoryRevenueItem("PERFORMANCE", 0.65f, "$${String.format(Locale.US, "%,.2f", lifetimeRevenue * 0.65)}")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        CategoryRevenueItem("MAINTENANCE", 0.35f, "$${String.format(Locale.US, "%,.2f", lifetimeRevenue * 0.35)}")
+                    if (revenueByCategory.isEmpty()) {
+                        item {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                border = BorderStroke(2.dp, Color.Black),
+                                color = Color.White
+                            ) {
+                                Text(
+                                    "NO CATEGORY DATA AVAILABLE",
+                                    modifier = Modifier.padding(16.dp),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 12.sp,
+                                    color = Neutral,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        val maxRevenue = revenueByCategory.values.maxOrNull() ?: 1.0
+                        items(revenueByCategory.toList().sortedByDescending { it.second }.size) { index ->
+                            val (category, amount) = revenueByCategory.toList().sortedByDescending { it.second }[index]
+                            CategoryRevenueItem(
+                                category = category,
+                                percentage = (amount / maxRevenue).toFloat(),
+                                value = "$${String.format(Locale.US, "%,.2f", amount)}"
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                     
                     item { Spacer(modifier = Modifier.height(32.dp)) }

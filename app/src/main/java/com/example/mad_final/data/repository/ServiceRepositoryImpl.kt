@@ -27,7 +27,15 @@ class ServiceRepositoryImpl @Inject constructor(
         return dao.getServiceById(id)?.toDomain()
     }
 
+    override suspend fun insertService(service: WorkshopService) {
+        dao.insertService(service.toEntity())
+    }
+
     override suspend fun updateService(service: WorkshopService) {
         dao.updateService(service.toEntity())
+    }
+
+    override suspend fun deleteService(service: WorkshopService) {
+        dao.deleteService(service.toEntity())
     }
 }

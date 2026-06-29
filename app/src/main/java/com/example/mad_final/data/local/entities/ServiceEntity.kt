@@ -8,11 +8,13 @@ import com.example.mad_final.domain.models.WorkshopService
 data class ServiceEntity(
     @PrimaryKey val id: String,
     val title: String,
-    val price: String,
+    val price: Double,
+    val duration: String,
     val description: String,
     val imageUrl: String,
     val tags: String, // Comma-separated
-    val category: String
+    val category: String,
+    val subCategory: String?
 )
 
 fun ServiceEntity.toDomain(): WorkshopService {
@@ -20,10 +22,12 @@ fun ServiceEntity.toDomain(): WorkshopService {
         id = id,
         title = title,
         price = price,
+        duration = duration,
         description = description,
         imageUrl = imageUrl,
         tags = if (tags.isEmpty()) emptyList() else tags.split(","),
-        category = category
+        category = category,
+        subCategory = subCategory
     )
 }
 
@@ -32,9 +36,11 @@ fun WorkshopService.toEntity(): ServiceEntity {
         id = id,
         title = title,
         price = price,
+        duration = duration,
         description = description,
         imageUrl = imageUrl,
         tags = tags.joinToString(","),
-        category = category
+        category = category,
+        subCategory = subCategory
     )
 }

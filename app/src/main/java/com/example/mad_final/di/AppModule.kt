@@ -65,37 +65,9 @@ object AppModule {
             app,
             ApexDatabase::class.java,
             ApexDatabase.DATABASE_NAME
-        ).fallbackToDestructiveMigration()
-        .addCallback(object : RoomDatabase.Callback() {
-            override fun onCreate(db: SupportSQLiteDatabase) {
-                super.onCreate(db)
-                seedDatabase(db)
-            }
-
-            override fun onOpen(db: SupportSQLiteDatabase) {
-                super.onOpen(db)
-                // Optionally re-seed or check if empty on every open during development
-                seedDatabase(db)
-            }
-
-            private fun seedDatabase(db: SupportSQLiteDatabase) {
-                // Clear existing services to ensure new order and images are applied
-                db.execSQL("DELETE FROM services")
-                
-                db.execSQL("INSERT OR REPLACE INTO motorcycles (id, brand, model, year, pricePerDay, availability, imageUrl, description, type) VALUES ('1', 'Ducati', 'Panigale V4', 2024, 250.0, 1, 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?q=80&w=800&auto=format&fit=crop', 'Pure adrenaline. The Panigale V4 is the ultimate expression of Ducati racing DNA.', 'Sport')")
-                db.execSQL("INSERT OR REPLACE INTO motorcycles (id, brand, model, year, pricePerDay, availability, imageUrl, description, type) VALUES ('2', 'Harley-Davidson', 'Fat Boy 114', 2024, 180.0, 1, 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=800&auto=format&fit=crop', 'An icon of the road. Power and presence.', 'Cruiser')")
-                db.execSQL("INSERT OR REPLACE INTO motorcycles (id, brand, model, year, pricePerDay, availability, imageUrl, description, type) VALUES ('3', 'BMW', 'R 1250 GS', 2024, 210.0, 1, 'https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?q=80&w=800&auto=format&fit=crop', 'Unstoppable. The King of Adventure.', 'Adventure')")
-                
-                db.execSQL("INSERT INTO services (id, title, price, description, imageUrl, tags, category) VALUES ('1', 'Tuning Performance', '$150', 'Precision ECU remapping and dyno-optimization for maximum power delivery.', 'tuning', 'Performance,Tuning', 'PERFORMANCE')")
-                db.execSQL("INSERT INTO services (id, title, price, description, imageUrl, tags, category) VALUES ('2', 'Maintenance', '$80', 'Comprehensive 50-point technical inspection and fluid rejuvenation.', 'maintenance', 'Maintenance,Service', 'MAINTENANCE')")
-                db.execSQL("INSERT INTO services (id, title, price, description, imageUrl, tags, category) VALUES ('3', 'Engine Check Up', '$120', 'Advanced sensor & loom verification using professional diagnostic tools.', 'engine_checkup', 'Diagnostics,Engine', 'PERFORMANCE')")
-                db.execSQL("INSERT INTO services (id, title, price, description, imageUrl, tags, category) VALUES ('4', 'Washing', '$45', 'Professional deep cleaning and detailing for a showroom finish.', 'washing', 'Cleaning,Detailing', 'MAINTENANCE')")
-
-                db.execSQL("INSERT OR IGNORE INTO parts (name, sku, stockQuantity, price, category) VALUES ('Brembo Brake Pads', 'BRK-001', 50, 85.0, 'BRAKES')")
-                db.execSQL("INSERT OR IGNORE INTO parts (name, sku, stockQuantity, price, category) VALUES ('Öhlins Rear Shock', 'SUS-402', 12, 1200.0, 'SUSPENSION')")
-                db.execSQL("INSERT OR IGNORE INTO parts (name, sku, stockQuantity, price, category) VALUES ('Akrapovic Exhaust', 'EXH-99', 5, 2400.0, 'PERFORMANCE')")
-            }
-        }).build()
+        ).fallbackToDestructiveMigration(dropAllTables = true)
+        .addCallback(com.example.mad_final.data.local.DatabaseSeeder())
+        .build()
     }
 
     @Provides
@@ -145,6 +117,12 @@ object AppModule {
         dao: PartDao
     ): PartRepository {
         return PartRepositoryImpl(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCartRepository(): com.example.mad_final.domain.repository.CartRepository {
+        return com.example.mad_final.data.repository.CartRepositoryImpl()
     }
 
     @Provides

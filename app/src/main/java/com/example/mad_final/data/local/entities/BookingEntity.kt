@@ -20,7 +20,12 @@ data class BookingEntity(
     val serviceNotes: String = "",
     val workDescription: String = "",
     val technicianName: String = "Unassigned",
-    val priority: String = "NORMAL"
+    val priority: String = "NORMAL",
+    val usedPartIds: List<Int> = emptyList(),
+    val customBrand: String? = null,
+    val customModel: String? = null,
+    val customYear: String? = null,
+    val descriptionDetail: String? = null
 )
 
 fun BookingEntity.toDomain() = Booking(
@@ -35,7 +40,12 @@ fun BookingEntity.toDomain() = Booking(
     serviceNotes = serviceNotes,
     workDescription = workDescription,
     technicianName = technicianName,
-    priority = Priority.valueOf(priority)
+    priority = Priority.valueOf(priority),
+    usedPartIds = usedPartIds,
+    customBrand = customBrand,
+    customModel = customModel,
+    customYear = customYear,
+    descriptionDetail = descriptionDetail
 )
 
 fun Booking.toEntity() = BookingEntity(
@@ -50,5 +60,10 @@ fun Booking.toEntity() = BookingEntity(
     serviceNotes = serviceNotes,
     workDescription = workDescription,
     technicianName = technicianName,
-    priority = priority.name
+    priority = priority.name,
+    usedPartIds = usedPartIds,
+    customBrand = customBrand,
+    customModel = customModel,
+    customYear = customYear,
+    descriptionDetail = descriptionDetail
 )

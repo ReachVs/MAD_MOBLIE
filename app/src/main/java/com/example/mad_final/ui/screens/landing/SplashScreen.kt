@@ -6,11 +6,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mad_final.ui.screens.auth.AuthViewModel
 import com.example.mad_final.ui.screens.auth.SessionState
@@ -22,7 +23,7 @@ fun SplashScreen(
     onNavigateToLanding: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    val sessionState by viewModel.sessionState.collectAsState()
+    val sessionState by viewModel.sessionState.collectAsStateWithLifecycle()
 
     LaunchedEffect(sessionState) {
         when (sessionState) {
@@ -44,9 +45,13 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1E293B)),
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator(color = Color.White)
+        com.example.mad_final.ui.components.TechnicalGridBackground()
+        CircularProgressIndicator(
+            color = Color.Black,
+            strokeWidth = 4.dp
+        )
     }
 }

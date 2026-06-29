@@ -1,6 +1,8 @@
 package com.example.mad_final.ui.screens.admin
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -13,12 +15,14 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.unit.sp
@@ -37,22 +41,66 @@ fun AdminDrawerContent(
     onInventoryClick: () -> Unit = {},
     onQueueClick: () -> Unit = {},
     onRevenueClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {},
+    onServicesClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onLogout: () -> Unit = {},
     onClose: () -> Unit = {},
-    currentRoute: String = ""
+    currentRoute: String = "",
+    userName: String? = null,
+    userImageUri: String? = null
 ) {
     ModalDrawerSheet(
         drawerContainerColor = Color.White,
         drawerShape = RoundedCornerShape(0.dp)
     ) {
         Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "MAD APE ADMIN",
-            modifier = Modifier.padding(24.dp),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-1).sp
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    userName?.uppercase() ?: "MAD APE ADMIN",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "SYSTEM ADMINISTRATOR",
+                    color = Primary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+            
+            val placeholderPainter = rememberVectorPainter(Icons.Default.Person)
+            val errorPainter = rememberVectorPainter(Icons.Default.Warning)
+            
+            AsyncImage(
+                model = userImageUri,
+                contentDescription = "Admin Profile",
+                modifier = Modifier
+                    .size(48.dp)
+                    .border(2.dp, Color.Black)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onProfileClick()
+                        onClose()
+                    },
+                contentScale = ContentScale.Crop,
+                placeholder = placeholderPainter,
+                error = errorPainter
+            )
+        }
         HorizontalDivider(thickness = 2.dp, color = Color.Black)
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -64,7 +112,7 @@ fun AdminDrawerContent(
                 onDashboardClick()
                 onClose()
             },
-            icon = { Icon(Icons.Default.Home, contentDescription = null) },
+            icon = { Icon(Icons.Default.GridView, contentDescription = null) },
             shape = RoundedCornerShape(0.dp),
             colors = NavigationDrawerItemDefaults.colors(
                 unselectedContainerColor = Color.Transparent,
@@ -81,7 +129,7 @@ fun AdminDrawerContent(
                 onInventoryClick()
                 onClose()
             },
-            icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+            icon = { Icon(Icons.Default.Inventory, contentDescription = null) },
             shape = RoundedCornerShape(0.dp),
             colors = NavigationDrawerItemDefaults.colors(
                 unselectedContainerColor = Color.Transparent,
@@ -124,6 +172,40 @@ fun AdminDrawerContent(
                 selectedIconColor = Primary
             )
         )
+
+        NavigationDrawerItem(
+            label = { Text("CALENDAR", fontWeight = FontWeight.Black) },
+            selected = currentRoute == Screen.AdminCalendar.route,
+            onClick = {
+                onCalendarClick()
+                onClose()
+            },
+            icon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+            shape = RoundedCornerShape(0.dp),
+            colors = NavigationDrawerItemDefaults.colors(
+                unselectedContainerColor = Color.Transparent,
+                selectedContainerColor = Primary.copy(alpha = 0.1f),
+                selectedTextColor = Primary,
+                selectedIconColor = Primary
+            )
+        )
+
+        NavigationDrawerItem(
+            label = { Text("SERVICES", fontWeight = FontWeight.Black) },
+            selected = currentRoute == Screen.AdminServices.route,
+            onClick = {
+                onServicesClick()
+                onClose()
+            },
+            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+            shape = RoundedCornerShape(0.dp),
+            colors = NavigationDrawerItemDefaults.colors(
+                unselectedContainerColor = Color.Transparent,
+                selectedContainerColor = Primary.copy(alpha = 0.1f),
+                selectedTextColor = Primary,
+                selectedIconColor = Primary
+            )
+        )
         
         Spacer(modifier = Modifier.weight(1f))
 
@@ -147,7 +229,7 @@ fun AdminDrawerContent(
 
 @Composable
 fun AdminBottomNavigation(
-    onHomeClick: () -> Unit,
+    onDashboardClick: () -> Unit,
     onInventoryClick: () -> Unit,
     onQueueClick: () -> Unit,
     currentRoute: String = ""
@@ -165,10 +247,10 @@ fun AdminBottomNavigation(
         }
     ) {
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = null) },
+            icon = { Icon(Icons.Default.GridView, contentDescription = null) },
             label = { Text("DASHBOARD", fontSize = 10.sp, fontWeight = FontWeight.Black) },
             selected = currentRoute == Screen.AdminDashboard.route,
-            onClick = onHomeClick,
+            onClick = onDashboardClick,
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = Secondary,
                 selectedTextColor = Secondary,
@@ -178,7 +260,7 @@ fun AdminBottomNavigation(
             )
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+            icon = { Icon(Icons.Default.Inventory, contentDescription = null) },
             label = { Text("INVENTORY", fontSize = 10.sp, fontWeight = FontWeight.Black) },
             selected = currentRoute == Screen.AdminInventory.route,
             onClick = onInventoryClick,
@@ -210,7 +292,10 @@ fun AdminBottomNavigation(
 @Composable
 fun AdminTopBar(
     title: String = "MAD APE ADMIN",
+    userImageUri: String? = null,
     onMenuClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    onCalendarClick: (() -> Unit)? = null,
     showSearch: Boolean = false
 ) {
     CenterAlignedTopAppBar(
@@ -228,26 +313,29 @@ fun AdminTopBar(
             }
         },
         actions = {
+            if (onCalendarClick != null) {
+                IconButton(onClick = onCalendarClick) {
+                    Icon(Icons.Default.DateRange, contentDescription = "Calendar")
+                }
+            }
             if (showSearch) {
                 IconButton(onClick = {}) {
                     Icon(Icons.Default.Search, contentDescription = "Search")
                 }
             }
-            IconButton(onClick = {}) {
-                val placeholderPainter = rememberVectorPainter(Icons.Default.Refresh)
+            IconButton(onClick = onProfileClick) {
+                val placeholderPainter = rememberVectorPainter(Icons.Default.Person)
                 val errorPainter = rememberVectorPainter(Icons.Default.Warning)
                 
                 AsyncImage(
-                    model = "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=100&auto=format&fit=crop",
+                    model = userImageUri,
                     contentDescription = "Admin Profile",
                     modifier = Modifier
                         .size(32.dp)
                         .border(1.dp, Color.Black),
                     contentScale = ContentScale.Crop,
                     placeholder = placeholderPainter,
-                    error = errorPainter,
-                    onLoading = { android.util.Log.d("AdminTopBar", "Loading admin profile image") },
-                    onError = { android.util.Log.e("AdminTopBar", "Error loading admin profile image", it.result.throwable) }
+                    error = errorPainter
                 )
             }
         },
