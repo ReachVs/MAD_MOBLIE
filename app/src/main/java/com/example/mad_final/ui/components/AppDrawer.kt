@@ -111,7 +111,8 @@ fun AppDrawerContent(
                         contentDescription = "Profile",
                         modifier = Modifier
                             .size(48.dp)
-                            .border(2.dp, Color.Black)
+                            .clip(CircleShape)
+                            .border(2.dp, Color.Black, CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null

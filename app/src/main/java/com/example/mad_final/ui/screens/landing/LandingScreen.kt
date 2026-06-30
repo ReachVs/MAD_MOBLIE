@@ -3,6 +3,7 @@ package com.example.mad_final.ui.screens.landing
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -122,7 +123,7 @@ fun LandingTopBar(onProfileClick: () -> Unit, onMenuClick: () -> Unit = {}) {
         actions = {
             IconButton(onClick = onProfileClick) {
                 Surface(
-                    shape = RoundedCornerShape(0.dp),
+                    shape = CircleShape,
                     color = Color.White,
                     border = BorderStroke(1.dp, Color.Black),
                     modifier = Modifier.size(32.dp)

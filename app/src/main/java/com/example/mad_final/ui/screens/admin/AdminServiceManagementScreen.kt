@@ -106,8 +106,15 @@ fun AdminServiceManagementScreen(
         if (showAddDialog) {
             ServiceDialog(
                 onDismiss = { showAddDialog = false },
-                onConfirm = { title, price, duration, description, imageUrl, category ->
-                    viewModel.addService(title, price, duration, description, imageUrl, category)
+                onConfirm = { title, price, description, category ->
+                    viewModel.addService(
+                        title = title,
+                        price = price,
+                        duration = "30 mins", // Default duration
+                        description = description,
+                        imageUrl = "service_placeholder", // Default placeholder
+                        category = category
+                    )
                     showAddDialog = false
                 }
             )
@@ -117,13 +124,11 @@ fun AdminServiceManagementScreen(
             ServiceDialog(
                 service = service,
                 onDismiss = { serviceToEdit = null },
-                onConfirm = { title, price, duration, description, imageUrl, category ->
+                onConfirm = { title, price, description, category ->
                     viewModel.updateService(service.copy(
                         title = title,
                         price = price,
-                        duration = duration,
                         description = description,
-                        imageUrl = imageUrl,
                         category = category
                     ))
                     serviceToEdit = null
@@ -191,7 +196,7 @@ fun ServiceItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Price: $${String.format(java.util.Locale.US, "%.2f", service.price)} • Duration: ${service.duration}",
+                    "Price: $${String.format(java.util.Locale.US, "%.2f", service.price)}",
                     fontSize = 12.sp
                 )
             }
@@ -212,7 +217,7 @@ fun ServiceItem(
 fun ServiceDialog(
     service: WorkshopService? = null,
     onDismiss: () -> Unit,
-    onConfirm: (String, Double, String, String, String, String) -> Unit
+    onConfirm: (String, Double, String, String) -> Unit
 ) {
     val categories = listOf(
         "MAINTENANCE SERVICES",
@@ -223,9 +228,7 @@ fun ServiceDialog(
 
     var title by remember { mutableStateOf(service?.title ?: "") }
     var price by remember { mutableStateOf(service?.price?.toString() ?: "") }
-    var duration by remember { mutableStateOf(service?.duration ?: "") }
     var description by remember { mutableStateOf(service?.description ?: "") }
-    var imageUrl by remember { mutableStateOf(service?.imageUrl ?: "") }
     var category by remember { mutableStateOf(service?.category ?: categories[0]) }
     var expanded by remember { mutableStateOf(false) }
 
@@ -251,12 +254,6 @@ fun ServiceDialog(
                     label = { Text("Price (e.g. 50.00)") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-                OutlinedTextField(
-                    value = duration,
-                    onValueChange = { duration = it },
-                    label = { Text("Duration (e.g. 2h)") },
-                    modifier = Modifier.fillMaxWidth()
                 )
                 
                 // Restricted Category Selection
@@ -296,12 +293,6 @@ fun ServiceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
-                OutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("Image URL") },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         },
         confirmButton = {
@@ -309,7 +300,7 @@ fun ServiceDialog(
                 onClick = { 
                     val priceDouble = price.toDoubleOrNull()
                     if (title.isNotBlank() && priceDouble != null) {
-                        onConfirm(title, priceDouble, duration, description, imageUrl, category)
+                        onConfirm(title, priceDouble, description, category)
                     }
                 },
                 shape = RoundedCornerShape(0.dp),

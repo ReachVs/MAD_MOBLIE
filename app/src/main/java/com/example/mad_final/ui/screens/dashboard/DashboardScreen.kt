@@ -3,6 +3,7 @@ package com.example.mad_final.ui.screens.dashboard
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -153,7 +155,10 @@ fun DashboardTopBar(
                 AsyncImage(
                     model = userImageUri,
                     contentDescription = "Profile",
-                    modifier = Modifier.size(32.dp).border(1.dp, Color.Black),
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, Color.Black, CircleShape),
                     contentScale = ContentScale.Crop,
                     placeholder = placeholderPainter,
                     error = errorPainter

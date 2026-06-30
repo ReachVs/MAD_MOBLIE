@@ -74,109 +74,12 @@ fun AdminDashboardScreen(
     val activeOrdersCount by viewModel.activeOrdersCount.collectAsStateWithLifecycle()
     val urgentTasksCount by viewModel.urgentTasksCount.collectAsStateWithLifecycle()
     val revenueData by viewModel.revenueData.collectAsStateWithLifecycle()
-    val services by viewModel.services.collectAsStateWithLifecycle()
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     val adminImageUri by viewModel.adminImageUri.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     
-    var showAddWorkOrderDialog by remember { mutableStateOf(false) }
-    
-    var motorcycleId by remember { mutableStateOf("") }
-    var userId by remember { mutableStateOf("") }
-    var workDescription by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("150.0") }
-    var selectedServiceId by remember { mutableStateOf<String?>(null) }
-
-
-    if (showAddWorkOrderDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddWorkOrderDialog = false },
-            title = { Text("NEW WORK ORDER", fontWeight = FontWeight.Black) },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = motorcycleId,
-                        onValueChange = { motorcycleId = it },
-                        label = { Text("Unit ID / VIN", fontWeight = FontWeight.Black) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp)
-                    )
-                    OutlinedTextField(
-                        value = userId,
-                        onValueChange = { userId = it },
-                        label = { Text("Customer ID", fontWeight = FontWeight.Black) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp)
-                    )
-                    
-                    Text("Select Service Type", fontSize = 12.sp, fontWeight = FontWeight.Black)
-                    services.forEach { s ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { 
-                                    selectedServiceId = s.id
-                                    workDescription = s.title
-                                    price = s.price.toString()
-                                }
-                        ) {
-                            RadioButton(selected = selectedServiceId == s.id, onClick = {
-                                selectedServiceId = s.id
-                                workDescription = s.title
-                                price = s.price.toString()
-                            })
-                            Text(s.title, fontSize = 12.sp)
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = workDescription,
-                        onValueChange = { workDescription = it },
-                        label = { Text("Work Description", fontWeight = FontWeight.Black) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp)
-                    )
-                    OutlinedTextField(
-                        value = price,
-                        onValueChange = { price = it },
-                        label = { Text("Price ($)", fontWeight = FontWeight.Black) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val finalPrice = price.toDoubleOrNull() ?: 150.0
-                        viewModel.createWorkOrder(motorcycleId, userId, workDescription, finalPrice)
-                        showAddWorkOrderDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(0.dp)
-                ) {
-                    Text("CREATE", fontWeight = FontWeight.Black)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddWorkOrderDialog = false }) {
-                    Text("CANCEL", fontWeight = FontWeight.Black, color = Neutral)
-                }
-            },
-            shape = RoundedCornerShape(0.dp)
-        )
-    }
-
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -228,16 +131,6 @@ fun AdminDashboardScreen(
                     onQueueClick = onQueueClick,
                     currentRoute = Screen.AdminDashboard.route
                 )
-            },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showAddWorkOrderDialog = true },
-                    containerColor = Primary,
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(0.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Work Order")
-                }
             }
         ) { paddingValues ->
             Box(
@@ -336,7 +229,7 @@ fun AdminDashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "ACTIVE WORK ORDERS",
+                                "SERVICE QUEUE",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp,

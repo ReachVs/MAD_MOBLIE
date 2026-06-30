@@ -112,14 +112,6 @@ class AdminDashboardViewModel @Inject constructor(
             initialValue = 0.0
         )
 
-    val services: StateFlow<List<com.example.mad_final.domain.models.WorkshopService>> = serviceRepository.getServices()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-
     val revenueData: StateFlow<List<Double>> = bookingRepository.getBookings()
         .map { list ->
             // Last 7 days revenue for sparkline
@@ -171,24 +163,4 @@ class AdminDashboardViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyMap()
     )
-
-    fun createWorkOrder(motorcycleId: String, userId: String, description: String, price: Double = 150.0) {
-        viewModelScope.launch {
-            val booking = Booking(
-                id = java.util.UUID.randomUUID().toString(),
-                motorcycleId = motorcycleId,
-                userId = userId,
-                startDate = System.currentTimeMillis(),
-                endDate = System.currentTimeMillis() + 86400000,
-                totalPrice = price,
-                status = BookingStatus.PENDING,
-                paymentStatus = com.example.mad_final.domain.models.PaymentStatus.UNPAID,
-                workDescription = description,
-                technicianName = "Unassigned",
-                priority = Priority.NORMAL,
-                descriptionDetail = "Admin created work order"
-            )
-            bookingRepository.createBooking(booking)
-        }
-    }
 }

@@ -88,7 +88,8 @@ fun AdminDrawerContent(
                 contentDescription = "Admin Profile",
                 modifier = Modifier
                     .size(48.dp)
-                    .border(2.dp, Color.Black)
+                    .clip(CircleShape)
+                    .border(2.dp, Color.Black, CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -140,7 +141,7 @@ fun AdminDrawerContent(
         )
 
         NavigationDrawerItem(
-            label = { Text("QUEUE", fontWeight = FontWeight.Black) },
+            label = { Text("SERVICE QUEUE", fontWeight = FontWeight.Black) },
             selected = currentRoute == Screen.AdminQueue.route,
             onClick = {
                 onQueueClick()
@@ -274,7 +275,7 @@ fun AdminBottomNavigation(
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.Build, contentDescription = null) },
-            label = { Text("QUEUE", fontSize = 10.sp, fontWeight = FontWeight.Black) },
+            label = { Text("SERVICE QUEUE", fontSize = 10.sp, fontWeight = FontWeight.Black) },
             selected = currentRoute == Screen.AdminQueue.route,
             onClick = onQueueClick,
             colors = NavigationBarItemDefaults.colors(
@@ -332,7 +333,8 @@ fun AdminTopBar(
                     contentDescription = "Admin Profile",
                     modifier = Modifier
                         .size(32.dp)
-                        .border(1.dp, Color.Black),
+                        .clip(CircleShape)
+                        .border(1.dp, Color.Black, CircleShape),
                     contentScale = ContentScale.Crop,
                     placeholder = placeholderPainter,
                     error = errorPainter

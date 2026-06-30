@@ -259,10 +259,12 @@ fun ProfileScreen(
                     Box(
                         modifier = Modifier
                             .size(120.dp)
+                            .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 4.dp,
-                                color = if (isAdmin) Primary else Secondary
+                                color = if (isAdmin) Primary else Secondary,
+                                shape = CircleShape
                             )
                             .clickable {
                                 photoPickerLauncher.launch(
