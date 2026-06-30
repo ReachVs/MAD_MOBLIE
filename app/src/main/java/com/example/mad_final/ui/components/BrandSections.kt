@@ -322,15 +322,15 @@ fun ContactSection() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            SocialIcon(Icons.AutoMirrored.Filled.Send, "Telegram", Color(0xFF229ED9))
-            SocialIcon(Icons.Default.ThumbUp, "Facebook", Color(0xFF1877F2))
-            SocialIcon(Icons.Default.Favorite, "Instagram", Color(0xFFE4405F))
+            SocialIcon(R.drawable.telegram, "Telegram")
+            SocialIcon(R.drawable.facebook, "Facebook")
+            SocialIcon(R.drawable.instagram, "Instagram")
         }
     }
 }
 
 @Composable
-fun SocialIcon(icon: ImageVector, label: String, color: Color) {
+fun SocialIcon(drawableId: Int, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             modifier = Modifier.size(48.dp),
@@ -339,7 +339,12 @@ fun SocialIcon(icon: ImageVector, label: String, color: Color) {
             border = BorderStroke(2.dp, Color.Black)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
+                Image(
+                    painter = painterResource(id = drawableId),
+                    contentDescription = label,
+                    modifier = Modifier.size(32.dp),
+                    contentScale = ContentScale.Fit
+                )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
