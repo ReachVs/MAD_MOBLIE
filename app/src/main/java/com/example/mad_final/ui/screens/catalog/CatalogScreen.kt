@@ -38,6 +38,7 @@ import com.example.mad_final.domain.models.WorkshopService
 import com.example.mad_final.ui.theme.Primary
 import com.example.mad_final.ui.theme.Secondary
 import com.example.mad_final.ui.theme.Neutral
+import com.example.mad_final.ui.components.legacy.LegacyServiceList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,14 +142,11 @@ fun CatalogScreen(
                                         isExpanded = isSubExpanded,
                                         onExpandToggle = { expandedSubCategories[subKey] = !isSubExpanded }
                                     ) {
-                                        subServices.forEach { service ->
-                                            ServiceListItem(
-                                                service = service,
-                                                isSelected = selectedServiceIds.contains(service.id),
-                                                onToggle = { viewModel.toggleService(service.id) }
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                        }
+                                        LegacyServiceList(
+                                            services = subServices,
+                                            selectedIds = selectedServiceIds,
+                                            onToggle = { viewModel.toggleService(it) }
+                                        )
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
